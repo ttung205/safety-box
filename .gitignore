@@ -3,3 +3,4 @@ web/dist/
 **/.env
 **/.env.local
 secrets.h
+node_modules/
