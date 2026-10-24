@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Khi phát triển dùng SQLite. Chạy thật với MySQL: đổi provider = "mysql",
+// DATABASE_URL="mysql://user:pass@localhost:3306/ketsat", xóa thư mục prisma/migrations
+// rồi chạy lại: npx prisma migrate dev --name init
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id           Int       @id @default(autoincrement())
+  name         String
+  apiKeyHash   String    @unique @map("api_key_hash")
+  state        String?
+  ip           String?
+  rssi         Int?
+  fw           String?
+  timeOk       Boolean?  @map("time_ok")
+  uptime       Int?
+  freeHeap     Int?      @map("free_heap")
+  lastSeenAt   DateTime? @map("last_seen_at")
+  // Tăng 1 mỗi lần thêm/xóa thẻ; ESP32 chỉ tải lại danh sách khi số này đổi.
+  cardsVersion Int       @default(1) @map("cards_version")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  events SafeEvent[]
+  cards  Card[]
+
+  @@map("devices")
+}
+
+model SafeEvent {
+  id         Int      @id @default(autoincrement())
+  deviceId   Int      @map("device_id")
+  device     Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  // "<boot_id>-<seq>": ESP32 gửi lại lô cũ cũng không bị ghi trùng
+  uid        String
+  type       String
+  severity   String // critical | warning | info
+  state      String?
+  message    String
+  meta       Json?
+  occurredAt DateTime @map("occurred_at")
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@unique([deviceId, uid])
+  @@index([type])
+  @@index([severity])
+  @@index([occurredAt])
+  @@map("safe_events")
+}
+
+model Card {
+  id        Int      @id @default(autoincrement())
+  deviceId  Int      @map("device_id")
+  device    Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  uid       String // "DE AD BE EF", chữ in hoa
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([deviceId, uid])
+  @@map("cards")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}

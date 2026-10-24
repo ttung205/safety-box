@@ -1,0 +1,6 @@
+/* Chỉ khai báo thứ tự layer + import; toàn bộ giao diện dùng utility class của Tailwind. */
+@layer theme, base, primevue, components, utilities;
+
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+@import "primeicons/primeicons.css";
