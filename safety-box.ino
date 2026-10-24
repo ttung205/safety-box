@@ -466,10 +466,19 @@ static int postJson(const char* path, const String& body) {
   }
   if (!ok) return -1;
   http.setTimeout(15000);
+  const char* responseHeaders[] = {"x-vercel-error", "x-vercel-id"};
+  http.collectHeaders(responseHeaders, 2);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Accept", "application/json");
   http.addHeader("X-Device-Key", DEVICE_KEY);
   int code = http.POST(body);
+  if (code < 200 || code >= 300) {
+    String detail = code > 0 ? http.getString() : HTTPClient::errorToString(code);
+    if (detail.length() > 300) detail = detail.substring(0, 300);
+    Serial.printf("[HTTP] POST %s -> %d (%s, %s): %s\n", url.c_str(), code,
+                  http.header("x-vercel-error").c_str(), http.header("x-vercel-id").c_str(),
+                  detail.c_str());
+  }
   http.end();
   return code;
 }
@@ -525,10 +534,20 @@ static int getJson(const char* path, String& out) {
   }
   if (!ok) return -1;
   http.setTimeout(15000);
+  const char* responseHeaders[] = {"x-vercel-error", "x-vercel-id"};
+  http.collectHeaders(responseHeaders, 2);
   http.addHeader("Accept", "application/json");
   http.addHeader("X-Device-Key", DEVICE_KEY);
   int code = http.GET();
-  if (code == 200) out = http.getString();
+  if (code == 200) {
+    out = http.getString();
+  } else {
+    String detail = code > 0 ? http.getString() : HTTPClient::errorToString(code);
+    if (detail.length() > 300) detail = detail.substring(0, 300);
+    Serial.printf("[HTTP] GET %s -> %d (%s, %s): %s\n", url.c_str(), code,
+                  http.header("x-vercel-error").c_str(), http.header("x-vercel-id").c_str(),
+                  detail.c_str());
+  }
   http.end();
   return code;
 }
