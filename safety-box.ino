@@ -1,5 +1,5 @@
 // ============================================================================
-//  KÉT SẮT THÔNG MINH – ESP32 (firmware 1.2, bản 1 file cho Arduino IDE)
+//  KÉT SẮT THÔNG MINH – ESP32 (firmware 1.2 cho Arduino IDE)
 //
 //  Cách dùng:
 //   - Quẹt thẻ Admin      -> mở két ngay.
@@ -19,33 +19,20 @@
 // ============================================================================
 
 // ============================================================================
-//  1. CẤU HÌNH – sửa các giá trị trong phần này rồi nạp code.
-//     (chứa mật khẩu WiFi và khóa bí mật: không chia sẻ file đã điền)
+//  1. CẤU HÌNH – sao chép secrets.example.h thành secrets.h rồi điền giá trị.
+//     secrets.h chứa khóa bí mật và đã được Git bỏ qua.
 // ============================================================================
 
-// ---------- WiFi & server ----------
-#define WIFI_SSID      "ttung"          // ESP32 chỉ bắt được WiFi 2.4 GHz
-#define WIFI_PASS      "1357902468"
-
-// Địa chỉ backend (server in ra dòng "API_BASE cho ESP32" khi chạy npm run dev).
-#define API_BASE       "https://<ten-app>.vercel.app/api/device"
-
-// Khóa thiết bị – lấy từ:  npm run device:create -- "Ket sat 01"
-// Chưa có backend thì cứ để nguyên, két vẫn chạy bình thường (chỉ không gửi được).
-#define DEVICE_KEY     "emm2lTZ7HaL-wh6NxDT4CkJgzEyBXrw5"
+#include "secrets.h"
 
 // ---------- OTP ----------
-// Khóa TOTP Base32 – tạo bằng:  python gen_secret.py
-// rồi quét QR / nhập khóa vào Google Authenticator.
-#define TOTP_SECRET_B32  "OFBA5M2IHBWOROPUXUDI2UOMRCRNSJFI"
 #define MAX_OTP_FAILS      3        // sai liên tiếp số lần này -> báo động
 #define OTP_INPUT_MS       30000    // thời gian nhập OTP (ms)
 
 // ---------- Thẻ Admin ----------
-// Thẻ được thêm/xóa trên web. ESP32 tự tải danh sách mỗi 30 giây và lưu vào bộ nhớ
-// trong (NVS) để vẫn dùng được khi mất mạng. Danh sách dưới đây CHỈ dùng khi két
-// chưa từng tải được danh sách từ server.
-// UID xem ở dòng "[RFID] UID: DE AD BE EF" trên Serial Monitor khi quẹt thẻ.
+// Thẻ được quản lý hoàn toàn trên web: nhấn "Thêm thẻ", nhập tên rồi quẹt thẻ
+// vào RC522. ESP32 gửi UID lên server và tự tải danh sách mới mỗi 30 giây.
+// Danh sách dưới đây CHỈ dùng khi két chưa từng tải được dữ liệu từ server.
 static const char* const BOOTSTRAP_ADMIN_UIDS[] = {
   "DE AD BE EF",
 };
@@ -866,7 +853,8 @@ void rejectCard(const char* uid) {
   char meta[48];
   snprintf(meta, sizeof meta, "{\"uid\":\"%s\"}", uid);
   logEvent("CARD_UNKNOWN", "Quẹt thẻ lạ", meta);
-  flash("The khong hop le", 2000);
+  // LCD chỉ xác nhận thao tác; phân loại/cảnh báo và cấp quyền được xử lý trên web.
+  flash("Da ghi nhan the", 2000);
 }
 
 bool readCard(char* uid, size_t n) {

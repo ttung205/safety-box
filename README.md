@@ -29,6 +29,13 @@ npm run device:create -- "Ket sat 01"
 
 Lệnh cuối in ra `DEVICE_KEY`. Dán khóa này vào `safety-box.ino`.
 
+## Quản lý thẻ
+
+Người dùng không nhập hoặc ghi nhớ UID. Trên web, chọn **Thêm thẻ mới**, nhập tên chủ thẻ,
+nhấn **Bắt đầu quét** rồi quẹt thẻ vào đầu đọc RC522 trong vòng 60 giây. ESP32 gửi UID như
+một sự kiện bảo mật, web nhận realtime và tự lưu thẻ. Khi xóa, chọn chủ thẻ trong danh sách
+và nhấn **Xóa**; UID luôn được xử lý nội bộ.
+
 ## 3. Chạy local
 
 Mở hai terminal tại gốc repo:
