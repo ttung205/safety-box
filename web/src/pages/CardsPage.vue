@@ -58,6 +58,8 @@ const dialog = reactive({
   error: '',
   saving: false,
   scanStartedAt: 0,
+  scanAfterId: 0,
+  scanReady: false,
   secondsLeft: 60,
 });
 
@@ -80,7 +82,7 @@ function closeDialog() {
   dialog.visible = false;
 }
 
-function openAddDialog() {
+async function openAddDialog() {
   stopScanning();
   Object.assign(dialog, {
     visible: true,
@@ -89,9 +91,22 @@ function openAddDialog() {
     id: null,
     name: '',
     error: '',
-    saving: false,
+    saving: true,
+    scanAfterId: 0,
+    scanReady: false,
     secondsLeft: 60,
   });
+  try {
+    const latest = await api('/dash-api/events', {
+      query: { type: 'CARD_UNKNOWN', deviceId: deviceId.value, pageSize: 1 },
+    });
+    dialog.scanAfterId = latest.items[0]?.id ?? 0;
+    dialog.scanReady = true;
+  } catch (err) {
+    dialog.error = `Không thể chuẩn bị đầu đọc thẻ: ${err.message}`;
+  } finally {
+    dialog.saving = false;
+  }
 }
 
 function openRenameDialog(card) {
@@ -131,14 +146,12 @@ async function pollScannedCard() {
     const result = await api('/dash-api/events', {
       query: { type: 'CARD_UNKNOWN', deviceId: deviceId.value, pageSize: 5 },
     });
-    const event = result.items.find((item) => {
-      const receivedAt = new Date(item.receivedAt || item.occurredAt).getTime();
-      return (
+    const event = result.items.find(
+      (item) =>
         Number(item.deviceId) === Number(deviceId.value) &&
-        item.meta?.uid &&
-        receivedAt >= dialog.scanStartedAt - 1000
-      );
-    });
+        item.id > dialog.scanAfterId &&
+        item.meta?.uid,
+    );
     if (event) await completeScan(event.meta.uid);
   } catch {
     // Realtime vẫn là đường chính; lần polling sau sẽ thử lại.
@@ -154,6 +167,10 @@ async function startScanning() {
   }
   if (!device.value?.online) {
     dialog.error = 'Két đang mất kết nối. Hãy bật két và chờ trạng thái trực tuyến trước khi thêm thẻ.';
+    return;
+  }
+  if (!dialog.scanReady) {
+    dialog.error = 'Chưa chuẩn bị được phiên quét. Hãy đóng cửa sổ và thử lại.';
     return;
   }
 
@@ -198,8 +215,7 @@ useSocketEvent('event:created', (event) => {
     dialog.mode === 'add' &&
     dialog.step === 'scan' &&
     Number(event.deviceId) === Number(deviceId.value) &&
-    event.type === 'CARD_UNKNOWN' &&
-    new Date(event.receivedAt || event.occurredAt).getTime() >= dialog.scanStartedAt - 1000
+    event.type === 'CARD_UNKNOWN'
   ) {
     completeScan(event.meta?.uid);
   }
