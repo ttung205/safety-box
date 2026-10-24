@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20.12"
+    "node": ">=22.12"
   },
   "scripts": {
     "dev": "node --watch src/index.js",
@@ -13,21 +13,21 @@
     "device:create": "node src/scripts/createDevice.js",
     "seed:admin": "node src/scripts/seedAdmin.js",
     "simulate": "node src/scripts/simulate.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
-    "bcrypt": "^6.0.0",
+    "@supabase/supabase-js": "^2.76.1",
+    "@vercel/functions": "^2.2.3",
+    "body-parser": "^2.4.0",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.1",
-    "express-session": "^1.19.0",
     "helmet": "^8.3.0",
-    "socket.io": "^4.8.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
     "prisma": "^6.19.3",
     "supertest": "^7.3.1",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.5"
   }
 }

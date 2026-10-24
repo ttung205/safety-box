@@ -1,36 +1,65 @@
-import { io } from 'socket.io-client';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { handleUnauthorized } from './api.js';
+import { supabase } from './supabase.js';
 
-// Kết nối Socket.IO (tự kết nối lại, tự chuyển long-polling khi WebSocket bị chặn).
-export const socket = io({ autoConnect: false });
 export const connected = ref(false);
 
+const handlers = new Map();
 const resyncHandlers = new Set();
 let everConnected = false;
+let channel = null;
+let connecting = null;
 
-socket.on('connect', () => {
-  connected.value = true;
-  // Kết nối lại sau khi rớt mạng: gọi lại API để bù các sự kiện bị lỡ.
-  if (everConnected) resyncHandlers.forEach((fn) => fn());
-  everConnected = true;
-});
-socket.on('disconnect', () => (connected.value = false));
-socket.on('connect_error', (err) => {
-  connected.value = false;
-  if (err.message === 'UNAUTHORIZED') {
-    socket.disconnect();
-    handleUnauthorized();
-  }
-});
+function dispatch(event, payload) {
+  for (const handler of handlers.get(event) || []) handler(payload);
+}
 
-export function connectSocket() {
-  if (!socket.connected) socket.connect();
+// Adapter nhỏ để các store hiện tại giữ nguyên API on/off như trước đây.
+export const socket = {
+  on(event, handler) {
+    if (!handlers.has(event)) handlers.set(event, new Set());
+    handlers.get(event).add(handler);
+  },
+  off(event, handler) {
+    handlers.get(event)?.delete(handler);
+  },
+};
+
+export function connectSocket(accessToken) {
+  if (channel) return accessToken ? supabase.realtime.setAuth(accessToken) : Promise.resolve();
+  if (connecting) return connecting;
+  connecting = (async () => {
+    let token = accessToken;
+    if (!token) {
+      const { data } = await supabase.auth.getSession();
+      token = data.session?.access_token;
+    }
+    if (!token) return handleUnauthorized();
+
+    await supabase.realtime.setAuth(token);
+    channel = supabase.channel('dashboard', { config: { private: true } });
+    for (const event of ['device:updated', 'event:created', 'cards:updated']) {
+      channel.on('broadcast', { event }, ({ payload }) => dispatch(event, payload));
+    }
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        connected.value = true;
+        dispatch('connect');
+        if (everConnected) resyncHandlers.forEach((fn) => fn());
+        everConnected = true;
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        connected.value = false;
+      }
+    });
+  })().finally(() => (connecting = null));
+  return connecting;
 }
 
 export function disconnectSocket() {
   everConnected = false;
-  socket.disconnect();
+  connected.value = false;
+  if (channel) supabase.removeChannel(channel);
+  channel = null;
 }
 
 // Đăng ký sự kiện realtime trong component, tự hủy khi rời trang.

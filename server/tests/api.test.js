@@ -1,6 +1,19 @@
-import bcrypt from 'bcrypt';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/supabase.js', () => ({
+  supabase: {
+    auth: {
+      getClaims: vi.fn(async (token) =>
+        token === 'test-token'
+          ? { data: { claims: { sub: 'test-user', email: 'admin@test.local' } }, error: null }
+          : { data: null, error: new Error('invalid token') },
+      ),
+    },
+  },
+}));
+vi.mock('../src/realtime.js', () => ({ emitDashboard: vi.fn(async () => {}) }));
+
 import { createApp } from '../src/app.js';
 import { prisma } from '../src/prisma.js';
 import { hashKey } from '../src/services/devices.js';
@@ -13,17 +26,12 @@ const ev = (seq, type = 'OPENED', extra = {}) => ({
   seq, ts: Math.floor(Date.now() / 1000), type, state: 'OPEN', message: 'Mở két', ...extra,
 });
 
-async function loginAgent() {
-  const agent = request.agent(app);
-  await agent.post('/auth/login').send({ email: 'admin@test.local', password: 'matkhau123' }).expect(200);
-  return agent;
+function dashboard(method, path) {
+  return request(app)[method](path).set('Authorization', 'Bearer test-token');
 }
 
 beforeAll(async () => {
   device = await prisma.device.create({ data: { name: 'Két test', apiKeyHash: hashKey(KEY) } });
-  await prisma.user.create({
-    data: { email: 'admin@test.local', name: 'Admin', passwordHash: await bcrypt.hash('matkhau123', 4) },
-  });
 });
 afterAll(() => prisma.$disconnect());
 
@@ -84,43 +92,39 @@ describe('API cho ESP32', () => {
 describe('Dashboard', () => {
   it('bắt đăng nhập', async () => {
     await request(app).get('/dash-api/devices').expect(401);
-    await request(app).get('/auth/me').expect(401);
-    await request(app).post('/auth/login').send({ email: 'admin@test.local', password: 'sai' }).expect(401);
+    await request(app).get('/dash-api/devices').set('Authorization', 'Bearer invalid').expect(401);
   });
 
   it('thêm/xóa thẻ làm tăng version mà ESP32 nhận được', async () => {
-    const agent = await loginAgent();
     const v0 = (await request(app).get('/api/device/cards').set('X-Device-Key', KEY)).body.version;
 
-    const add = await agent.post('/dash-api/cards').send({ deviceId: device.id, uid: 'de:ad:be:ef', name: 'Tùng' }).expect(201);
+    const add = await dashboard('post', '/dash-api/cards').send({ deviceId: device.id, uid: 'de:ad:be:ef', name: 'Tùng' }).expect(201);
     expect(add.body.uid).toBe('DE AD BE EF');
-    await agent.post('/dash-api/cards').send({ deviceId: device.id, uid: 'DEADBEEF', name: 'Trùng' }).expect(409);
+    await dashboard('post', '/dash-api/cards').send({ deviceId: device.id, uid: 'DEADBEEF', name: 'Trùng' }).expect(409);
 
     let esp = (await request(app).get('/api/device/cards').set('X-Device-Key', KEY)).body;
     expect(esp).toEqual({ version: v0 + 1, cards: ['DE AD BE EF'] });
 
-    await agent.delete(`/dash-api/cards/${add.body.id}`).expect(200);
+    await dashboard('delete', `/dash-api/cards/${add.body.id}`).expect(200);
     esp = (await request(app).get('/api/device/cards').set('X-Device-Key', KEY)).body;
     expect(esp).toEqual({ version: v0 + 2, cards: [] });
   });
 
   it('thẻ lạ quẹt gần đây hiện trong danh sách chờ cấp quyền', async () => {
-    const agent = await loginAgent();
     await request(app)
       .post('/api/device/events')
       .set('X-Device-Key', KEY)
       .send({ boot_id: 9, events: [ev(1, 'CARD_UNKNOWN', { state: 'LOCKED', meta: { uid: '04 A1 B2 C3' } })] })
       .expect(200);
-    const res = await agent.get(`/dash-api/cards/unknown?deviceId=${device.id}`).expect(200);
+    const res = await dashboard('get', `/dash-api/cards/unknown?deviceId=${device.id}`).expect(200);
     expect(res.body).toEqual([expect.objectContaining({ uid: '04 A1 B2 C3', count: 1 })]);
   });
 
   it('lọc sự kiện theo mức độ và phân trang', async () => {
-    const agent = await loginAgent();
-    const res = await agent.get('/dash-api/events?severity=critical&page=1').expect(200);
+    const res = await dashboard('get', '/dash-api/events?severity=critical&page=1').expect(200);
     expect(res.body.total).toBe(1);
     expect(res.body.items[0]).toMatchObject({ type: 'ALARM', deviceName: 'Két test' });
-    const stats = await agent.get('/dash-api/stats?days=14').expect(200);
+    const stats = await dashboard('get', '/dash-api/stats?days=14').expect(200);
     expect(stats.body.days).toHaveLength(14);
     expect(stats.body.today.critical).toBe(1);
   });

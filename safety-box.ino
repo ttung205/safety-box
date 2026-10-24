@@ -28,7 +28,7 @@
 #define WIFI_PASS      "1357902468"
 
 // Địa chỉ backend (server in ra dòng "API_BASE cho ESP32" khi chạy npm run dev).
-#define API_BASE       "http://10.203.184.184:3000/api/device"
+#define API_BASE       "https://<ten-app>.vercel.app/api/device"
 
 // Khóa thiết bị – lấy từ:  npm run device:create -- "Ket sat 01"
 // Chưa có backend thì cứ để nguyên, két vẫn chạy bình thường (chỉ không gửi được).
@@ -478,7 +478,7 @@ static int postJson(const char* path, const String& body) {
     ok = http.begin(plain, url);
   }
   if (!ok) return -1;
-  http.setTimeout(5000);
+  http.setTimeout(15000);
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Accept", "application/json");
   http.addHeader("X-Device-Key", DEVICE_KEY);
@@ -537,7 +537,7 @@ static int getJson(const char* path, String& out) {
     ok = http.begin(plain, url);
   }
   if (!ok) return -1;
-  http.setTimeout(5000);
+  http.setTimeout(15000);
   http.addHeader("Accept", "application/json");
   http.addHeader("X-Device-Key", DEVICE_KEY);
   int code = http.GET();

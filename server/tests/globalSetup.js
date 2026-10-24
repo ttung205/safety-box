@@ -1,13 +1,12 @@
 import { execSync } from 'node:child_process';
-import fs from 'node:fs';
-import path from 'node:path';
 
-// DB test riêng (prisma/test.db), tạo lại từ đầu mỗi lần chạy test.
+// Chỉ reset project Postgres/Supabase dành riêng cho test.
 export default function setup() {
-  const db = path.resolve(import.meta.dirname, '../prisma/test.db');
-  for (const f of [db, `${db}-journal`]) fs.rmSync(f, { force: true });
-  execSync('npx prisma db push --skip-generate', {
-    env: { ...process.env, DATABASE_URL: 'file:./test.db' },
+  const url = process.env.TEST_DATABASE_URL;
+  if (!url) throw new Error('Thiếu TEST_DATABASE_URL trỏ tới database test riêng.');
+  execSync('npx prisma db push --force-reset --skip-generate', {
+    cwd: new URL('..', import.meta.url),
+    env: { ...process.env, DATABASE_URL: url, DIRECT_URL: url },
     stdio: 'ignore',
   });
 }

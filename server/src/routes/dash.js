@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { prisma } from '../prisma.js';
-import { emitDashboard } from '../socket.js';
+import { emitDashboard } from '../realtime.js';
 import { toDeviceDto } from '../services/devices.js';
 import { toEventDto } from '../services/ingest.js';
 import { EVENT_TYPES, SEVERITIES } from '../services/labels.js';
@@ -127,8 +127,8 @@ const renameSchema = z.object({ name: z.string().trim().min(1, 'Vui lòng nhập
 
 const toCardDto = (c) => ({ id: c.id, deviceId: c.deviceId, uid: c.uid, name: c.name, createdAt: c.createdAt });
 
-function cardsChanged(device) {
-  emitDashboard('cards:updated', { deviceId: device.id, cardsVersion: device.cardsVersion });
+async function cardsChanged(device) {
+  await emitDashboard('cards:updated', { deviceId: device.id, cardsVersion: device.cardsVersion });
 }
 
 dashRouter.get('/cards', async (req, res) => {
@@ -179,7 +179,7 @@ dashRouter.post('/cards', async (req, res) => {
     prisma.card.create({ data: { deviceId: device.id, uid, name: r.data.name } }),
     prisma.device.update({ where: { id: device.id }, data: { cardsVersion: { increment: 1 } } }),
   ]);
-  cardsChanged(updated);
+  await cardsChanged(updated);
   res.status(201).json(toCardDto(card));
 });
 
@@ -190,7 +190,7 @@ dashRouter.patch('/cards/:id', async (req, res) => {
   const card = await prisma.card.findUnique({ where: { id: int(req.params.id, 1, 2 ** 31, 0) } });
   if (!card) return res.status(404).json({ error: 'Không tìm thấy thẻ.' });
   const updated = await prisma.card.update({ where: { id: card.id }, data: { name: r.data.name } });
-  emitDashboard('cards:updated', { deviceId: card.deviceId });
+  await emitDashboard('cards:updated', { deviceId: card.deviceId });
   res.json(toCardDto(updated));
 });
 
@@ -201,6 +201,6 @@ dashRouter.delete('/cards/:id', async (req, res) => {
     prisma.card.delete({ where: { id: card.id } }),
     prisma.device.update({ where: { id: card.deviceId }, data: { cardsVersion: { increment: 1 } } }),
   ]);
-  cardsChanged(updated);
+  await cardsChanged(updated);
   res.json({ ok: true });
 });

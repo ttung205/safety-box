@@ -16,12 +16,10 @@ const list = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boole
 
 export const config = {
   port: Number(process.env.PORT) || 3000,
-  host: process.env.HOST || '0.0.0.0',
-  sessionSecret: process.env.SESSION_SECRET || 'dev-secret-doi-ngay',
-  cookieSecure: process.env.COOKIE_SECURE === 'true',
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
   offlineAfterMs: (Number(process.env.OFFLINE_AFTER_SEC) || 60) * 1000,
   maxCards: 20, // = MAX_CARDS trong firmware
-  webDist: path.resolve(rootDir, '../web/dist'),
   telegram: {
     token: process.env.TELEGRAM_BOT_TOKEN || '',
     chatId: process.env.TELEGRAM_CHAT_ID || '',

@@ -11,8 +11,6 @@ export default defineConfig({
     proxy: {
       '/api': target,
       '/dash-api': target,
-      '/auth': target,
-      '/socket.io': { target, ws: true },
     },
   },
 });

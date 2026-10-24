@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "workspaces": ["server", "web"],
+  "scripts": {
+    "build": "npm run build -w web"
+  }
+}

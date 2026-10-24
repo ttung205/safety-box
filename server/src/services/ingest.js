@@ -1,5 +1,5 @@
 import { prisma } from '../prisma.js';
-import { emitDashboard } from '../socket.js';
+import { emitDashboard } from '../realtime.js';
 import { emitDevice } from './devices.js';
 import { SEVERITY_BY_TYPE } from './labels.js';
 
@@ -29,34 +29,23 @@ export function toEventDto(e) {
 
 export async function ingestEvents(device, { boot_id, events }) {
   const now = new Date();
-  const created = [];
-  let duplicates = 0;
-
-  for (const e of events) {
-    try {
-      const row = await prisma.safeEvent.create({
-        data: {
-          deviceId: device.id,
-          uid: `${boot_id}-${e.seq}`,
-          type: e.type,
-          severity: SEVERITY_BY_TYPE[e.type],
-          state: e.state ?? null,
-          message: e.message,
-          meta: e.meta ?? undefined,
-          occurredAt: resolveOccurredAt(e.ts, now),
-          receivedAt: now,
-        },
-        include: { device: { select: { name: true } } },
-      });
-      created.push(toEventDto(row));
-    } catch (err) {
-      if (err.code === 'P2002') {
-        duplicates++; // bản gửi lại của lô cũ
-        continue;
-      }
-      throw err;
-    }
-  }
+  const rows = await prisma.safeEvent.createManyAndReturn({
+    data: events.map((e) => ({
+      deviceId: device.id,
+      uid: `${boot_id}-${e.seq}`,
+      type: e.type,
+      severity: SEVERITY_BY_TYPE[e.type],
+      state: e.state ?? null,
+      message: e.message,
+      meta: e.meta ?? undefined,
+      occurredAt: resolveOccurredAt(e.ts, now),
+      receivedAt: now,
+    })),
+    skipDuplicates: true,
+    include: { device: { select: { name: true } } },
+  });
+  const created = rows.map(toEventDto);
+  const duplicates = events.length - created.length;
 
   const lastState = events.findLast((e) => e.state)?.state;
   const updated = await prisma.device.update({
@@ -64,8 +53,10 @@ export async function ingestEvents(device, { boot_id, events }) {
     data: { lastSeenAt: now, ...(lastState && { state: lastState }) },
   });
 
-  for (const ev of created) emitDashboard('event:created', ev);
-  emitDevice(updated);
+  await Promise.all([
+    ...created.map((ev) => emitDashboard('event:created', ev)),
+    emitDevice(updated),
+  ]);
   return { accepted: created.length, duplicates, created };
 }
 
@@ -83,6 +74,6 @@ export async function recordHeartbeat(device, hb) {
       freeHeap: hb.free_heap,
     },
   });
-  emitDevice(updated);
+  await emitDevice(updated);
   return updated;
 }

@@ -2,12 +2,10 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// Khi phát triển dùng SQLite. Chạy thật với MySQL: đổi provider = "mysql",
-// DATABASE_URL="mysql://user:pass@localhost:3306/ketsat", xóa thư mục prisma/migrations
-// rồi chạy lại: npx prisma migrate dev --name init
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Device {
@@ -63,14 +61,4 @@ model Card {
 
   @@unique([deviceId, uid])
   @@map("cards")
-}
-
-model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  name         String
-  createdAt    DateTime @default(now()) @map("created_at")
-
-  @@map("users")
 }

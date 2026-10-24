@@ -10,7 +10,16 @@ export const store = reactive({
   now: Date.now(),
 });
 
-setInterval(() => (store.now = Date.now()), 5000);
+const offlineAfterMs = (Number(import.meta.env.VITE_OFFLINE_AFTER_SEC) || 60) * 1000;
+
+function withPresence(device, now = Date.now()) {
+  return { ...device, online: Boolean(device.lastSeenAt) && now - new Date(device.lastSeenAt).getTime() < offlineAfterMs };
+}
+
+setInterval(() => {
+  store.now = Date.now();
+  store.devices = store.devices.map((device) => withPresence(device, store.now));
+}, 10000);
 
 export const alarmingDevices = computed(() => store.devices.filter((d) => d.state === 'ALARM'));
 
@@ -20,6 +29,7 @@ async function fetchLastAlarm(deviceId) {
 }
 
 function upsertDevice(device) {
+  device = withPresence(device);
   const i = store.devices.findIndex((d) => d.id === device.id);
   if (i >= 0) store.devices[i] = device;
   else store.devices.push(device);

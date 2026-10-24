@@ -1,3 +1,5 @@
+import { supabase } from './supabase.js';
+
 export class ApiError extends Error {
   constructor(message, status) {
     super(message);
@@ -23,21 +25,25 @@ export async function handleUnauthorized() {
   }
 }
 
-// fetch kèm cookie; gặp 401 thì chuyển về trang đăng nhập.
+// Fetch API kèm JWT của Supabase; gặp 401 thì chuyển về trang đăng nhập.
 export async function api(path, { method = 'GET', body, query } = {}) {
   let res;
   try {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
     res = await fetch(buildUrl(path, query), {
       method,
-      credentials: 'same-origin',
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        ...(body && { 'Content-Type': 'application/json' }),
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError('Không kết nối được máy chủ. Vui lòng kiểm tra server đã chạy chưa.', 0);
   }
   const data = await res.json().catch(() => null);
-  if (res.status === 401 && !path.startsWith('/auth/')) handleUnauthorized();
+  if (res.status === 401) handleUnauthorized();
   if (!res.ok) throw new ApiError(data?.error || `Máy chủ trả về lỗi HTTP ${res.status}.`, res.status);
   return data;
 }

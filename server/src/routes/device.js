@@ -1,5 +1,5 @@
+import { waitUntil } from '@vercel/functions';
 import { Router } from 'express';
-import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { deviceAuth } from '../middleware/deviceAuth.js';
 import { prisma } from '../prisma.js';
@@ -10,10 +10,7 @@ import { notifyEvents } from '../services/telegram.js';
 // API cho ESP32: API_BASE = http://<server>:3000/api/device, header X-Device-Key.
 export const deviceRouter = Router();
 
-deviceRouter.use(
-  rateLimit({ windowMs: 60000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }),
-  deviceAuth,
-);
+deviceRouter.use(deviceAuth);
 
 const eventsSchema = z.object({
   boot_id: z.number().int().nonnegative(),
@@ -54,7 +51,12 @@ deviceRouter.post('/events', async (req, res) => {
   if (!body) return;
   const { accepted, duplicates, created } = await ingestEvents(req.device, body);
   res.json({ ok: true, accepted, duplicates });
-  notifyEvents(created).catch(() => {});
+  const notification = notifyEvents(created).catch(() => {});
+  try {
+    waitUntil(notification);
+  } catch {
+    // Khi chạy Express local không có request context của Vercel; promise vẫn tiếp tục chạy.
+  }
 });
 
 deviceRouter.post('/heartbeat', async (req, res) => {

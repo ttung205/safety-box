@@ -1,66 +1,67 @@
 # Két sắt thông minh – Web dashboard
 
-- `safety-box.ino`: firmware ESP32
-- `server/`: Express 5 + Prisma + Socket.IO (API cho ESP32 và dashboard)
-- `web/`: Vue 3 + Vite + PrimeVue 4 + Tailwind
+- `safety-box.ino`: firmware ESP32.
+- `server/`: Express 5 + Prisma/PostgreSQL, đóng gói thành Vercel Function.
+- `web/`: Vue 3 + Vite, đăng nhập và realtime qua Supabase.
 
-## Cài đặt lần đầu
+## 1. Tạo Supabase project
+
+Tạo project ở region Singapore. Trong Authentication → Sign In / Providers, tắt **Allow new users to sign up**.
+
+Sao chép `server/.env.example` thành `server/.env`, rồi điền:
+
+- `DATABASE_URL`: Transaction pooler cổng 6543, thêm `?pgbouncer=true&connection_limit=1`.
+- `DIRECT_URL`: direct connection hoặc Session pooler cổng 5432.
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME`.
+
+Sao chép `web/.env.example` thành `web/.env`, rồi điền URL và anon/publishable key của cùng project.
+
+## 2. Cài đặt và khởi tạo
+
+```bash
+npm install
+cd server
+npx prisma migrate deploy
+npm run seed:admin
+npm run device:create -- "Ket sat 01"
+```
+
+Lệnh cuối in ra `DEVICE_KEY`. Dán khóa này vào `safety-box.ino`.
+
+## 3. Chạy local
+
+Mở hai terminal tại gốc repo:
+
+```bash
+npm run dev -w server
+npm run dev -w web
+```
+
+API chạy ở `http://localhost:3000`, giao diện ở `http://localhost:5173`. Vite proxy `/api` và `/dash-api` sang Express; Auth và Realtime kết nối thẳng Supabase.
+
+## 4. Deploy Vercel
+
+Import repo với Root Directory là gốc repo. Cấu hình các biến cho Production và Preview:
+
+- `DATABASE_URL`, `DIRECT_URL`
+- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- `OFFLINE_AFTER_SEC`, `VITE_OFFLINE_AFTER_SEC`
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_SEVERITIES` (nếu dùng)
+
+Sau khi deploy, thay `API_BASE` trong firmware bằng `https://<ten-app>.vercel.app/api/device`, rồi nạp lại ESP32.
+
+## 5. Giả lập và test
 
 ```bash
 cd server
-npm install
-cp .env.example .env            # sửa SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
-npx prisma migrate dev          # tạo DB SQLite (prisma/dev.db)
-npm run seed:admin              # tạo tài khoản đăng nhập web
-npm run device:create -- "Ket sat 01"   # in ra DEVICE_KEY, dán vào safety-box.ino
-
-cd ../web
-npm install
+npm run simulate -- --url https://<ten-app>.vercel.app/api/device
+npm run simulate -- --url https://<ten-app>.vercel.app/api/device --backfill 14
 ```
 
-Trong `safety-box.ino` đặt `API_BASE` = địa chỉ server in ra khi chạy `npm run dev`
-(ví dụ `http://192.168.1.10:3000/api/device`) và `DEVICE_KEY` vừa tạo.
+Integration test cần một Supabase/Postgres project riêng. Đặt `TEST_DATABASE_URL` và chạy `npm test -w server`; test sẽ xóa dữ liệu trong database test trước khi chạy.
 
-## Chạy khi phát triển
+## Telegram
 
-```bash
-cd server && npm run dev        # http://localhost:3000 (API)
-cd web && npm run dev           # http://localhost:5173 (giao diện, proxy sang 3000)
-```
-
-## Chạy khi demo
-
-```bash
-cd web && npm run build         # tạo web/dist
-cd server && npm start          # Express phục vụ luôn giao diện tại http://<IP>:3000
-```
-
-## Demo khi chưa có két thật
-
-```bash
-cd server
-npm run simulate                    # kịch bản: rung nhẹ, thẻ lạ, mở két, cạy phá, tắt báo động
-npm run simulate -- --backfill 14   # thêm dữ liệu 14 ngày cho biểu đồ
-```
-
-Giả lập tạo một két tên "Két mô phỏng". Muốn xóa sạch dữ liệu thử thì xóa `server/prisma/dev.db`
-rồi chạy lại `npx prisma migrate dev` và `npm run seed:admin`.
-
-## Lệnh khác
-
-| Lệnh (trong `server/`) | Tác dụng |
-| --- | --- |
-| `npm run device:create -- --list` | Xem danh sách két |
-| `npm run device:create -- --rotate 1` | Cấp lại khóa cho két #1 |
-| `npm test` | Chạy test API (Vitest + Supertest, DB riêng `prisma/test.db`) |
-
-## Telegram (tuỳ chọn)
-
-Điền `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` trong `server/.env`. Mặc định chỉ gửi sự kiện
-mức `critical` (báo động); đổi `TELEGRAM_SEVERITIES=critical,warning` để nhận cả thẻ lạ / sai OTP.
-
-## Chuyển sang MySQL
-
-Trong `server/prisma/schema.prisma` đổi `provider = "mysql"`, đặt
-`DATABASE_URL="mysql://user:pass@localhost:3306/ketsat"`, xóa thư mục `prisma/migrations` rồi chạy
-`npx prisma migrate dev --name init`.
+Điền `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` trong `server/.env`. Mặc định chỉ gửi sự kiện `critical`; đổi `TELEGRAM_SEVERITIES=critical,warning` nếu muốn nhận thêm cảnh báo.
