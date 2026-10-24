@@ -46,7 +46,7 @@ async function loadCards() {
 }
 watch(deviceId, loadCards, { immediate: true });
 
-useSocketEvent('cards:updated', (event) => event.deviceId === deviceId.value && loadCards());
+useSocketEvent('cards:updated', (event) => Number(event.deviceId) === Number(deviceId.value) && loadCards());
 useResync(loadCards);
 
 const dialog = reactive({
@@ -58,7 +58,6 @@ const dialog = reactive({
   error: '',
   saving: false,
   scanStartedAt: 0,
-  scanAfterId: 0,
   secondsLeft: 60,
 });
 
@@ -83,7 +82,16 @@ function closeDialog() {
 
 function openAddDialog() {
   stopScanning();
-  Object.assign(dialog, { visible: true, mode: 'add', step: 'form', id: null, name: '', error: '', saving: false, secondsLeft: 60 });
+  Object.assign(dialog, {
+    visible: true,
+    mode: 'add',
+    step: 'form',
+    id: null,
+    name: '',
+    error: '',
+    saving: false,
+    secondsLeft: 60,
+  });
 }
 
 function openRenameDialog(card) {
@@ -123,7 +131,14 @@ async function pollScannedCard() {
     const result = await api('/dash-api/events', {
       query: { type: 'CARD_UNKNOWN', deviceId: deviceId.value, pageSize: 5 },
     });
-    const event = result.items.find((item) => item.id > dialog.scanAfterId && item.meta?.uid);
+    const event = result.items.find((item) => {
+      const receivedAt = new Date(item.receivedAt || item.occurredAt).getTime();
+      return (
+        Number(item.deviceId) === Number(deviceId.value) &&
+        item.meta?.uid &&
+        receivedAt >= dialog.scanStartedAt - 1000
+      );
+    });
     if (event) await completeScan(event.meta.uid);
   } catch {
     // Realtime vẫn là đường chính; lần polling sau sẽ thử lại.
@@ -142,22 +157,12 @@ async function startScanning() {
     return;
   }
 
+  stopScanning();
   dialog.name = name;
-  dialog.saving = true;
-  try {
-    const latest = await api('/dash-api/events', {
-      query: { type: 'CARD_UNKNOWN', deviceId: deviceId.value, pageSize: 1 },
-    });
-    dialog.scanAfterId = latest.items[0]?.id ?? 0;
-  } catch (err) {
-    dialog.error = `Không thể bắt đầu quét: ${err.message}`;
-    dialog.saving = false;
-    return;
-  }
-  dialog.saving = false;
   dialog.step = 'scan';
   dialog.scanStartedAt = Date.now();
   dialog.secondsLeft = Math.ceil(SCAN_TIMEOUT_MS / 1000);
+  dialog.saving = false;
   countdownTimer = setInterval(() => {
     const elapsed = Date.now() - dialog.scanStartedAt;
     dialog.secondsLeft = Math.max(0, Math.ceil((SCAN_TIMEOUT_MS - elapsed) / 1000));
@@ -168,6 +173,7 @@ async function startScanning() {
     }
   }, 1000);
   pollTimer = setInterval(pollScannedCard, 2000);
+  pollScannedCard();
 }
 
 async function submitDialog() {
@@ -191,9 +197,9 @@ useSocketEvent('event:created', (event) => {
     dialog.visible &&
     dialog.mode === 'add' &&
     dialog.step === 'scan' &&
-    event.deviceId === deviceId.value &&
+    Number(event.deviceId) === Number(deviceId.value) &&
     event.type === 'CARD_UNKNOWN' &&
-    event.id > dialog.scanAfterId
+    new Date(event.receivedAt || event.occurredAt).getTime() >= dialog.scanStartedAt - 1000
   ) {
     completeScan(event.meta?.uid);
   }
