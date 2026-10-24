@@ -23,3 +23,6 @@ export function createApp() {
   });
   return app;
 }
+
+// Vercel Express runtime auto-detects src/app.js and requires a default export.
+export default createApp();
