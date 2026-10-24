@@ -23,5 +23,8 @@
     "tailwindcss": "^4.3.3",
     "tailwindcss-primeui": "^0.6.1",
     "vite": "^8.3.5"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "4.3.3"
   }
 }
