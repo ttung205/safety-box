@@ -3,14 +3,17 @@ import Button from 'primevue/button';
 import Card from 'primevue/card';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
+import DataView from 'primevue/dataview';
 import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
+import Menu from 'primevue/menu';
 import Message from 'primevue/message';
 import Select from 'primevue/select';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { api } from '../lib/api.js';
+import { isMobile } from '../lib/breakpoint.js';
 import { formatDateTime } from '../lib/format.js';
 import { useResync, useSocketEvent } from '../lib/socket.js';
 import { store } from '../lib/store.js';
@@ -24,6 +27,18 @@ const deviceId = ref(null);
 const cards = ref([]);
 const loading = ref(false);
 const device = computed(() => store.devices.find((item) => item.id === deviceId.value));
+
+// Điện thoại: mỗi thẻ có menu "Đổi tên / Xóa" thay cho hai nút có chữ.
+const cardMenu = ref();
+const menuCard = ref(null);
+const cardMenuItems = computed(() => [
+  { label: 'Đổi tên', icon: 'pi pi-pencil', command: () => openRenameDialog(menuCard.value) },
+  { label: 'Xóa', icon: 'pi pi-trash', class: 'text-red-600', command: () => confirmDelete(menuCard.value) },
+]);
+function openCardMenu(event, card) {
+  menuCard.value = card;
+  cardMenu.value.toggle(event);
+}
 
 watch(
   () => store.devices.length,
@@ -250,10 +265,10 @@ function confirmDelete(card) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-4 md:gap-6">
     <div class="flex flex-col gap-1">
       <h1 class="m-0 text-xl font-semibold text-slate-900">Quản lý thẻ Admin</h1>
-      <p class="m-0 text-xs text-slate-500">Thêm thẻ bằng cách quẹt trực tiếp vào két; người dùng không cần biết UID.</p>
+      <p class="hidden md:block m-0 text-xs text-slate-500">Thêm thẻ bằng cách quẹt trực tiếp vào két; người dùng không cần biết UID.</p>
     </div>
 
     <Message v-if="store.devicesLoaded && !store.devices.length" severity="info">
@@ -270,8 +285,8 @@ function confirmDelete(card) {
               option-label="name"
               option-value="id"
               placeholder="Chọn két"
-              size="small"
-              class="w-52"
+              :size="isMobile ? undefined : 'small'"
+              class="w-full md:w-52"
             />
             <span class="text-sm text-slate-500 tabular-nums">
               {{ cards.length }}/{{ MAX_CARDS }} thẻ
@@ -280,14 +295,43 @@ function confirmDelete(card) {
             <Button
               label="Thêm thẻ mới"
               icon="pi pi-plus"
-              size="small"
+              :size="isMobile ? undefined : 'small'"
               class="ml-auto"
               :disabled="!deviceId || cards.length >= MAX_CARDS"
               @click="openAddDialog"
             />
           </div>
 
-          <DataTable :value="cards" :loading="loading" data-key="id" size="small">
+          <!-- Điện thoại: danh sách -->
+          <DataView v-if="isMobile" :value="cards" data-key="id">
+            <template #empty>
+              <div class="py-8 text-center text-sm text-slate-500">
+                <i v-if="loading" class="pi pi-spin pi-spinner text-xl text-indigo-600" />
+                <template v-else>Chưa có thẻ nào. Nhấn “Thêm thẻ mới”, nhập tên rồi quẹt thẻ vào đầu đọc RFID.</template>
+              </div>
+            </template>
+            <template #list="{ items: rows }">
+              <div class="flex flex-col">
+                <div v-for="card in rows" :key="card.id" class="flex items-center gap-3 py-3 border-b border-slate-200">
+                  <i class="pi pi-id-card text-xl text-indigo-600" />
+                  <div class="flex flex-col min-w-0 flex-1">
+                    <span class="font-medium text-slate-900 truncate">{{ card.name }}</span>
+                    <span class="text-xs text-slate-500 tabular-nums">Thêm lúc {{ formatDateTime(card.createdAt) }}</span>
+                  </div>
+                  <Button
+                    icon="pi pi-ellipsis-v"
+                    severity="secondary"
+                    text
+                    :aria-label="`Tùy chọn cho thẻ ${card.name}`"
+                    aria-haspopup="true"
+                    @click="openCardMenu($event, card)"
+                  />
+                </div>
+              </div>
+            </template>
+          </DataView>
+          <!-- Máy tính: bảng -->
+          <DataTable v-else :value="cards" :loading="loading" data-key="id" size="small">
             <template #empty>
               <div class="py-8 text-center text-sm text-slate-500">
                 Chưa có thẻ nào. Nhấn “Thêm thẻ mới”, nhập tên rồi quẹt thẻ vào đầu đọc RFID.
@@ -312,16 +356,26 @@ function confirmDelete(card) {
               </template>
             </Column>
           </DataTable>
+          <Menu ref="cardMenu" :model="cardMenuItems" popup />
         </div>
       </template>
     </Card>
 
-    <Dialog v-model:visible="dialog.visible" :header="dialogTitle" modal :draggable="false" :closable="!dialog.saving" class="w-full max-w-md">
+    <Dialog
+      v-model:visible="dialog.visible"
+      :header="dialogTitle"
+      modal
+      :draggable="false"
+      :closable="!dialog.saving"
+      :position="isMobile ? 'bottom' : 'center'"
+      :breakpoints="{ '767px': '100vw' }"
+      class="w-full max-w-md"
+    >
       <form v-if="dialog.step === 'form'" id="card-form" class="flex flex-col gap-4" @submit.prevent="submitDialog">
         <Message v-if="dialog.error" severity="error" size="small">{{ dialog.error }}</Message>
         <div class="flex flex-col gap-2">
           <label for="card-name" class="text-sm font-medium text-slate-700">Tên chủ thẻ</label>
-          <InputText id="card-name" v-model="dialog.name" placeholder="Ví dụ: Nguyễn Văn A" maxlength="60" autofocus fluid />
+          <InputText id="card-name" v-model="dialog.name" placeholder="Ví dụ: Nguyễn Văn A" maxlength="60" :autofocus="!isMobile" fluid />
           <small v-if="dialog.mode === 'add'" class="text-xs text-slate-500">Sau bước này, web sẽ yêu cầu bạn quẹt thẻ vào két.</small>
         </div>
       </form>

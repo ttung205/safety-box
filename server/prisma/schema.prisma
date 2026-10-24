@@ -62,3 +62,17 @@ model Card {
   @@unique([deviceId, uid])
   @@map("cards")
 }
+
+// Đăng ký nhận Web Push của từng thiết bị (điện thoại/trình duyệt) của người dùng Supabase.
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}

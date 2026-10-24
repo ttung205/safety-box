@@ -6,6 +6,7 @@ import { emitDashboard } from '../realtime.js';
 import { toDeviceDto } from '../services/devices.js';
 import { toEventDto } from '../services/ingest.js';
 import { EVENT_TYPES, SEVERITIES } from '../services/labels.js';
+import { pushEnabled, pushPublicKey } from '../services/push.js';
 
 // API chỉ đọc cho dashboard (+ quản lý thẻ). Không có route nào gửi lệnh về két.
 export const dashRouter = Router();
@@ -202,5 +203,37 @@ dashRouter.delete('/cards/:id', async (req, res) => {
     prisma.device.update({ where: { id: card.deviceId }, data: { cardsVersion: { increment: 1 } } }),
   ]);
   await cardsChanged(updated);
+  res.json({ ok: true });
+});
+
+// ------------------------------------------------------------- Web Push
+const subscribeSchema = z.object({
+  endpoint: z.url().max(2048).startsWith('https://'),
+  keys: z.object({ p256dh: z.string().min(1).max(256), auth: z.string().min(1).max(64) }),
+});
+
+// Khóa công khai VAPID để trình duyệt đăng ký; web không cần biến môi trường riêng.
+dashRouter.get('/push/config', (req, res) => {
+  res.json({ enabled: pushEnabled, publicKey: pushEnabled ? pushPublicKey : null });
+});
+
+dashRouter.post('/push/subscribe', async (req, res) => {
+  if (!pushEnabled) return res.status(503).json({ error: 'Máy chủ chưa cấu hình thông báo đẩy (VAPID).' });
+  const r = subscribeSchema.safeParse(req.body);
+  if (!r.success) return res.status(400).json({ error: 'Thông tin đăng ký thông báo không hợp lệ.' });
+  const { endpoint, keys } = r.data;
+  const data = {
+    userId: req.user.id,
+    p256dh: keys.p256dh,
+    auth: keys.auth,
+    userAgent: String(req.get('user-agent') || '').slice(0, 255) || null,
+  };
+  await prisma.pushSubscription.upsert({ where: { endpoint }, create: { endpoint, ...data }, update: data });
+  res.status(201).json({ ok: true });
+});
+
+dashRouter.post('/push/unsubscribe', async (req, res) => {
+  const endpoint = String(req.body?.endpoint ?? '');
+  if (endpoint) await prisma.pushSubscription.deleteMany({ where: { endpoint, userId: req.user.id } });
   res.json({ ok: true });
 });

@@ -22,7 +22,7 @@ const options = {
     tooltip: { mode: 'index', intersect: false },
   },
   scales: {
-    x: { stacked: true, grid: { display: false }, ticks: { color: '#64748b' } },
+    x: { stacked: true, grid: { display: false }, ticks: { color: '#64748b', autoSkip: true, maxRotation: 0 } },
     y: { stacked: true, beginAtZero: true, ticks: { precision: 0, color: '#64748b' }, grid: { color: '#e2e8f0' } },
   },
 };
@@ -32,11 +32,11 @@ const options = {
   <Card class="border border-slate-200">
     <template #content>
       <div class="flex flex-col gap-4">
-        <div class="flex items-baseline justify-between gap-3">
+        <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <h4 class="m-0 text-base font-semibold text-slate-900">Cảnh báo theo ngày</h4>
           <span class="text-xs text-slate-500">{{ days.length }} ngày gần nhất, giờ Việt Nam</span>
         </div>
-        <Chart type="bar" :data="data" :options="options" class="h-72" />
+        <Chart type="bar" :data="data" :options="options" class="h-56 md:h-72" />
       </div>
     </template>
   </Card>

@@ -72,3 +72,16 @@ Integration test cần một Supabase/Postgres project riêng. Đặt `TEST_DATA
 ## Telegram
 
 Điền `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` trong `server/.env`. Mặc định chỉ gửi sự kiện `critical`; đổi `TELEGRAM_SEVERITIES=critical,warning` nếu muốn nhận thêm cảnh báo.
+
+## PWA và thông báo đẩy (điện thoại)
+
+Web chạy như một ứng dụng: cài lên màn hình chính, mở không có thanh địa chỉ, và nhận báo động qua Web Push kể cả khi đã đóng ứng dụng.
+
+1. Tạo khóa VAPID (một lần): `npx web-push generate-vapid-keys`.
+2. Thêm vào biến môi trường của server (Vercel và `server/.env`): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (dạng `mailto:ban@example.com`). `PUSH_SEVERITIES` (mặc định `critical,warning`) chọn mức độ được đẩy về điện thoại.
+3. Áp dụng migration bảng `push_subscriptions`: `cd server && npx prisma migrate deploy`.
+4. Deploy lại, mở web trên điện thoại:
+   - **Android (Chrome):** menu ⋮ → **Cài ứng dụng**, rồi bật **Bật thông báo**.
+   - **iPhone (Safari 16.4+):** Chia sẻ → **Thêm vào MH chính**, mở ứng dụng từ màn hình chính rồi bật thông báo. iOS chỉ cho phép thông báo khi đã cài ứng dụng.
+
+Service Worker (`web/src/sw.js`) chỉ lưu vỏ ứng dụng, không cache API nên trạng thái két luôn là dữ liệu mới. PWA cần HTTPS (đã có trên Vercel); khi chạy `npm run dev` Service Worker không được bật.

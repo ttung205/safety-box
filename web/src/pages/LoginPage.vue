@@ -7,6 +7,7 @@ import Password from 'primevue/password';
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { login } from '../lib/auth.js';
+import { isMobile } from '../lib/breakpoint.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,7 +32,7 @@ async function submit() {
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4">
+  <div class="min-h-dvh flex items-center justify-center p-4">
     <Card class="w-full max-w-sm border border-slate-200">
       <template #content>
         <form class="flex flex-col gap-4" @submit.prevent="submit">
@@ -47,7 +48,7 @@ async function submit() {
 
           <div class="flex flex-col gap-2">
             <label for="email" class="text-sm font-medium text-slate-700">Email</label>
-            <InputText id="email" v-model="email" type="email" autocomplete="username" required autofocus fluid />
+            <InputText id="email" v-model="email" type="email" inputmode="email" autocomplete="username" required :autofocus="!isMobile" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label for="password" class="text-sm font-medium text-slate-700">Mật khẩu</label>

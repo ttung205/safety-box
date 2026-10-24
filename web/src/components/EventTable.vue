@@ -3,16 +3,18 @@ import Button from 'primevue/button';
 import Card from 'primevue/card';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
-import DatePicker from 'primevue/datepicker';
-import MultiSelect from 'primevue/multiselect';
-import Select from 'primevue/select';
+import DataView from 'primevue/dataview';
+import Drawer from 'primevue/drawer';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { api, buildUrl } from '../lib/api.js';
+import { api } from '../lib/api.js';
+import { isMobile } from '../lib/breakpoint.js';
+import { downloadFile } from '../lib/download.js';
 import { formatDateTime } from '../lib/format.js';
-import { EVENT_TYPES, SEVERITIES, describeMeta, severityOf, typeLabel } from '../lib/labels.js';
+import { describeMeta, severityOf, typeLabel } from '../lib/labels.js';
 import { useResync, useSocketEvent } from '../lib/socket.js';
+import EventFilters from './EventFilters.vue';
 
 const props = defineProps({ devices: { type: Array, default: () => [] } });
 
@@ -22,12 +24,15 @@ const items = ref([]);
 const total = ref(0);
 const first = ref(0);
 const loading = ref(false);
+const exporting = ref(false);
+const filterOpen = ref(false);
 const freshIds = ref(new Set());
 const filters = reactive({ types: [], severity: null, deviceId: null, range: null });
 
-const typeOptions = Object.entries(EVENT_TYPES).map(([value, label]) => ({ value, label }));
-const severityOptions = Object.entries(SEVERITIES).map(([value, s]) => ({ value, label: s.label }));
-const hasFilters = computed(() => filters.types.length || filters.severity || filters.deviceId || filters.range);
+const activeFilters = computed(
+  () => filters.types.length + [filters.severity, filters.deviceId, filters.range].filter(Boolean).length,
+);
+const hasFilters = computed(() => activeFilters.value > 0);
 
 function query() {
   const [start, end] = filters.range ?? [];
@@ -63,8 +68,15 @@ function resetFilters() {
   Object.assign(filters, { types: [], severity: null, deviceId: null, range: null });
 }
 
-function exportCsv() {
-  window.location.href = buildUrl('/dash-api/events/export', query()).toString();
+async function exportCsv() {
+  exporting.value = true;
+  try {
+    await downloadFile('/dash-api/events/export', query(), { share: isMobile.value });
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Không xuất được file CSV', detail: err.message, life: 6000 });
+  } finally {
+    exporting.value = false;
+  }
 }
 
 function matches(e) {
@@ -95,6 +107,11 @@ watch(filters, () => {
 onMounted(load);
 
 const rowClass = (row) => (freshIds.value.has(row.id) ? 'bg-indigo-50' : row.severity === 'critical' ? 'bg-red-50' : '');
+const emptyText = computed(() =>
+  hasFilters.value
+    ? 'Không tìm thấy sự kiện phù hợp với bộ lọc hiện tại.'
+    : 'Chưa có sự kiện nào. Két sẽ gửi nhật ký lên ngay khi kết nối WiFi.',
+);
 </script>
 
 <template>
@@ -103,63 +120,97 @@ const rowClass = (row) => (freshIds.value.has(row.id) ? 'bg-indigo-50' : row.sev
       <div class="flex flex-col gap-4">
         <div class="flex flex-wrap items-center gap-2">
           <h4 class="m-0 mr-auto text-base font-semibold text-slate-900">Nhật ký sự kiện</h4>
-          <MultiSelect
-            v-model="filters.types"
-            :options="typeOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Loại sự kiện"
-            :max-selected-labels="2"
-            selected-items-label="{0} loại sự kiện"
-            show-clear
-            size="small"
-            class="w-56"
-          />
-          <Select
-            v-model="filters.severity"
-            :options="severityOptions"
-            option-label="label"
-            option-value="value"
-            placeholder="Mức độ"
-            show-clear
-            size="small"
-            class="w-40"
-          />
-          <Select
-            v-if="devices.length > 1"
-            v-model="filters.deviceId"
-            :options="devices"
-            option-label="name"
-            option-value="id"
-            placeholder="Tất cả két"
-            show-clear
-            size="small"
-            class="w-44"
-          />
-          <DatePicker
-            v-model="filters.range"
-            selection-mode="range"
-            :manual-input="false"
-            date-format="dd/mm/yy"
-            placeholder="Khoảng ngày"
-            show-icon
-            show-button-bar
-            size="small"
-            class="w-60"
-          />
-          <Button
-            label="Đặt lại bộ lọc"
-            icon="pi pi-filter-slash"
-            size="small"
-            severity="secondary"
-            outlined
-            :disabled="!hasFilters"
-            @click="resetFilters"
-          />
-          <Button label="Xuất file CSV" icon="pi pi-download" size="small" severity="secondary" outlined @click="exportCsv" />
+
+          <!-- Điện thoại: bộ lọc nằm trong Drawer -->
+          <template v-if="isMobile">
+            <Button
+              label="Bộ lọc"
+              icon="pi pi-filter"
+              severity="secondary"
+              outlined
+              :badge="hasFilters ? String(activeFilters) : undefined"
+              @click="filterOpen = true"
+            />
+            <Button
+              icon="pi pi-download"
+              severity="secondary"
+              outlined
+              aria-label="Xuất file CSV"
+              :loading="exporting"
+              @click="exportCsv"
+            />
+          </template>
+
+          <template v-else>
+            <EventFilters :filters="filters" :devices="devices" />
+            <Button
+              label="Đặt lại bộ lọc"
+              icon="pi pi-filter-slash"
+              size="small"
+              severity="secondary"
+              outlined
+              :disabled="!hasFilters"
+              @click="resetFilters"
+            />
+            <Button
+              label="Xuất file CSV"
+              icon="pi pi-download"
+              size="small"
+              severity="secondary"
+              outlined
+              :loading="exporting"
+              @click="exportCsv"
+            />
+          </template>
         </div>
 
+        <!-- Điện thoại: danh sách -->
+        <DataView
+          v-if="isMobile"
+          :value="items"
+          lazy
+          paginator
+          :rows="PAGE_SIZE"
+          :first="first"
+          :total-records="total"
+          data-key="id"
+          paginator-template="PrevPageLink CurrentPageReport NextPageLink"
+          current-page-report-template="{first}–{last} / {totalRecords}"
+          @page="onPage"
+        >
+          <template #empty>
+            <div class="py-6 text-center text-sm text-slate-500">
+              <i v-if="loading" class="pi pi-spin pi-spinner text-xl text-indigo-600" />
+              <template v-else>{{ emptyText }}</template>
+            </div>
+          </template>
+          <template #list="{ items: rows }">
+            <div class="flex flex-col">
+              <div
+                v-for="row in rows"
+                :key="row.id"
+                class="flex flex-col gap-1 px-2 py-3 border-b border-slate-200"
+                :class="rowClass(row)"
+              >
+                <div class="flex items-center gap-2">
+                  <Tag :value="severityOf(row.severity).label" :severity="severityOf(row.severity).tag" />
+                  <span class="font-medium text-slate-900 truncate">{{ typeLabel(row.type) }}</span>
+                  <span class="ml-auto text-xs text-slate-500 tabular-nums whitespace-nowrap">{{ formatDateTime(row.occurredAt) }}</span>
+                </div>
+                <span class="text-sm text-slate-700">{{ row.message }}</span>
+                <span v-if="describeMeta(row.meta) || devices.length > 1" class="text-xs text-slate-500">
+                  <template v-if="devices.length > 1">{{ row.deviceName }}</template>
+                  <template v-if="devices.length > 1 && describeMeta(row.meta)"> · </template>
+                  {{ describeMeta(row.meta) }}
+                </span>
+              </div>
+            </div>
+          </template>
+        </DataView>
+
+        <!-- Máy tính: bảng -->
         <DataTable
+          v-else
           :value="items"
           lazy
           paginator
@@ -175,9 +226,7 @@ const rowClass = (row) => (freshIds.value.has(row.id) ? 'bg-indigo-50' : row.sev
           @page="onPage"
         >
           <template #empty>
-            <div class="py-6 text-center text-sm text-slate-500">
-              {{ hasFilters ? 'Không tìm thấy sự kiện phù hợp với bộ lọc hiện tại.' : 'Chưa có sự kiện nào. Két sẽ gửi nhật ký lên ngay khi kết nối WiFi.' }}
-            </div>
+            <div class="py-6 text-center text-sm text-slate-500">{{ emptyText }}</div>
           </template>
           <Column header="Thời gian" class="whitespace-nowrap">
             <template #body="{ data }">
@@ -205,4 +254,14 @@ const rowClass = (row) => (freshIds.value.has(row.id) ? 'bg-indigo-50' : row.sev
       </div>
     </template>
   </Card>
+
+  <Drawer v-model:visible="filterOpen" position="bottom" header="Bộ lọc sự kiện" class="h-auto max-h-[85dvh]">
+    <div class="flex flex-col gap-3 pb-[env(safe-area-inset-bottom)]">
+      <EventFilters :filters="filters" :devices="devices" />
+      <div class="flex gap-2">
+        <Button label="Đặt lại bộ lọc" icon="pi pi-filter-slash" severity="secondary" outlined class="flex-1" :disabled="!hasFilters" @click="resetFilters" />
+        <Button label="Xem kết quả" icon="pi pi-check" class="flex-1" @click="filterOpen = false" />
+      </div>
+    </div>
+  </Drawer>
 </template>

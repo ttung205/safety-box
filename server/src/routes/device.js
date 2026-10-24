@@ -5,6 +5,7 @@ import { deviceAuth } from '../middleware/deviceAuth.js';
 import { prisma } from '../prisma.js';
 import { ingestEvents, recordHeartbeat } from '../services/ingest.js';
 import { EVENT_TYPES, STATES } from '../services/labels.js';
+import { notifyPush } from '../services/push.js';
 import { notifyEvents } from '../services/telegram.js';
 
 // API cho ESP32: API_BASE = http://<server>:3000/api/device, header X-Device-Key.
@@ -51,7 +52,7 @@ deviceRouter.post('/events', async (req, res) => {
   if (!body) return;
   const { accepted, duplicates, created } = await ingestEvents(req.device, body);
   res.json({ ok: true, accepted, duplicates });
-  const notification = notifyEvents(created).catch(() => {});
+  const notification = Promise.allSettled([notifyEvents(created), notifyPush(created)]);
   try {
     waitUntil(notification);
   } catch {

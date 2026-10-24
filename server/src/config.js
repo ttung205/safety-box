@@ -25,4 +25,11 @@ export const config = {
     chatId: process.env.TELEGRAM_CHAT_ID || '',
     severities: list(process.env.TELEGRAM_SEVERITIES || 'critical'),
   },
+  // Web Push: tạo khóa bằng `npx web-push generate-vapid-keys`.
+  push: {
+    publicKey: process.env.VAPID_PUBLIC_KEY || '',
+    privateKey: process.env.VAPID_PRIVATE_KEY || '',
+    subject: process.env.VAPID_SUBJECT || 'mailto:admin@ketsat.local',
+    severities: list(process.env.PUSH_SEVERITIES || 'critical,warning'),
+  },
 };

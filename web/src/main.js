@@ -3,6 +3,7 @@ import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 import { createApp } from 'vue';
 import App from './App.vue';
+import './lib/pwa.js';
 import { viLocale } from './lib/locale.js';
 import { router } from './router.js';
 import { KetSatPreset } from './theme.js';
@@ -11,6 +12,8 @@ import './style.css';
 createApp(App)
   .use(PrimeVue, {
     locale: viLocale,
+    // Card gọn hơn trên điện thoại (tiện ích Tailwind nằm sau layer primevue nên ghi đè được).
+    pt: { card: { body: { class: 'p-3 md:p-5' } } },
     theme: {
       preset: KetSatPreset,
       options: {

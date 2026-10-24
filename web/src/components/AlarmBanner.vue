@@ -1,7 +1,8 @@
 <script setup>
 import Button from 'primevue/button';
 import Message from 'primevue/message';
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { isMobile } from '../lib/breakpoint.js';
 import { formatDateTime } from '../lib/format.js';
 import { describeMeta } from '../lib/labels.js';
 import { alarmingDevices, store } from '../lib/store.js';
@@ -11,9 +12,16 @@ const muted = ref(false);
 let audioCtx = null;
 let timer = null;
 
-function beep() {
+function unlockAudio() {
   audioCtx ??= new AudioContext();
   if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+// Điện thoại chỉ cho phát âm thanh sau khi người dùng đã chạm vào trang.
+onMounted(() => window.addEventListener('pointerdown', unlockAudio, { once: true }));
+
+function beep() {
+  unlockAudio();
   const t = audioCtx.currentTime;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -44,12 +52,15 @@ watch(
   },
 );
 
-onBeforeUnmount(() => clearInterval(timer));
+onBeforeUnmount(() => {
+  clearInterval(timer);
+  window.removeEventListener('pointerdown', unlockAudio);
+});
 </script>
 
 <template>
-  <div v-if="alarmingDevices.length" class="sticky top-14 z-10 bg-slate-50">
-    <div class="max-w-7xl mx-auto px-6 pt-4 flex flex-col gap-2">
+  <div v-if="alarmingDevices.length" class="sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-10 bg-slate-50">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 pt-4 flex flex-col gap-2">
       <Message v-for="d in alarmingDevices" :key="d.id" severity="error" icon="pi pi-exclamation-triangle">
         <div class="flex flex-wrap items-center gap-3 w-full">
           <div class="flex flex-col gap-1 flex-1 min-w-0">
@@ -66,7 +77,8 @@ onBeforeUnmount(() => clearInterval(timer));
             </span>
           </div>
           <Button
-            :label="muted ? 'Bật âm thanh' : 'Tắt âm thanh'"
+            :label="isMobile ? undefined : muted ? 'Bật âm thanh' : 'Tắt âm thanh'"
+            :aria-label="muted ? 'Bật âm thanh' : 'Tắt âm thanh'"
             :icon="muted ? 'pi pi-volume-up' : 'pi pi-volume-off'"
             size="small"
             severity="danger"

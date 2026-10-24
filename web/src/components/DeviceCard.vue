@@ -2,13 +2,18 @@
 import Card from 'primevue/card';
 import Divider from 'primevue/divider';
 import Tag from 'primevue/tag';
-import { computed } from 'vue';
+import Button from 'primevue/button';
+import { computed, ref } from 'vue';
+import { isMobile } from '../lib/breakpoint.js';
 import { formatUptime, rssiLabel, timeAgo } from '../lib/format.js';
 import { stateOf } from '../lib/labels.js';
 import { store } from '../lib/store.js';
 
 const props = defineProps({ device: { type: Object, required: true } });
 const state = computed(() => stateOf(props.device.state));
+// Điện thoại: ẩn bớt thông số kỹ thuật, bấm "Xem chi tiết" mới hiện.
+const expanded = ref(false);
+const showAll = computed(() => expanded.value || !isMobile.value);
 const alarm = computed(() => props.device.state === 'ALARM');
 </script>
 
@@ -46,7 +51,7 @@ const alarm = computed(() => props.device.state === 'ALARM');
             <dt class="text-xs text-slate-500">WiFi</dt>
             <dd class="m-0 tabular-nums">{{ rssiLabel(device.rssi) }}</dd>
           </div>
-          <div class="flex flex-col gap-1">
+          <div v-show="showAll" class="flex flex-col gap-1">
             <dt class="text-xs text-slate-500">Địa chỉ IP</dt>
             <dd class="m-0 tabular-nums">{{ device.ip ?? '—' }}</dd>
           </div>
@@ -60,11 +65,21 @@ const alarm = computed(() => props.device.state === 'ALARM');
               {{ device.timeOk == null ? '—' : device.timeOk ? 'Đã đồng bộ' : 'Chưa có giờ, OTP sẽ báo sai' }}
             </dd>
           </div>
-          <div class="flex flex-col gap-1">
+          <div v-show="showAll" class="flex flex-col gap-1">
             <dt class="text-xs text-slate-500">Bộ nhớ trống</dt>
             <dd class="m-0 tabular-nums">{{ device.freeHeap ? `${Math.round(device.freeHeap / 1024)} KB` : '—' }}</dd>
           </div>
         </dl>
+
+        <Button
+          class="md:hidden self-start"
+          :label="expanded ? 'Thu gọn' : 'Xem chi tiết'"
+          :icon="expanded ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+          size="small"
+          severity="secondary"
+          text
+          @click="expanded = !expanded"
+        />
       </div>
     </template>
   </Card>
