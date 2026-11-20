@@ -1,6 +1,8 @@
 import express from 'express';
 import helmet from 'helmet';
 import { requireAuth } from './middleware/requireAuth.js';
+import { fcmEnabled } from './services/fcm.js';
+import { pushEnabled } from './services/push.js';
 import { dashRouter } from './routes/dash.js';
 import { deviceRouter } from './routes/device.js';
 
@@ -25,6 +27,9 @@ export function createApp() {
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
   });
+
+  // Chẩn đoán cấu hình (chỉ trả về true/false, không lộ giá trị nào).
+  app.get('/api/health', (req, res) => res.json({ ok: true, fcm: fcmEnabled, webPush: pushEnabled }));
 
   app.use('/api/device', deviceRouter);
   app.use('/dash-api', requireAuth, dashRouter);

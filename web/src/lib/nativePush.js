@@ -7,6 +7,17 @@ export const isNativeApp = Capacitor.isNativePlatform();
 
 let started = false;
 
+// Hộp thoại hệ thống: thấy được ngay trên điện thoại mà không cần cắm máy tính đọc log.
+// Chỉ hiện khi có lỗi hoặc đăng ký thành công (lần đầu), tối đa một lần mỗi lần mở app.
+function report(message) {
+  console.warn('[PUSH]', message);
+  try {
+    window.alert(message);
+  } catch {
+    // WebView không cho alert: bỏ qua.
+  }
+}
+
 export async function startNativePush() {
   if (!isNativeApp || started) return;
   started = true;
@@ -33,18 +44,21 @@ export async function startNativePush() {
     PushNotifications.addListener('registration', async ({ value }) => {
       try {
         await api('/dash-api/push/fcm-token', { method: 'POST', body: { token: value } });
+        report('Đã bật thông báo báo động trên máy này.');
       } catch (e) {
-        console.warn('Không gửi được token FCM lên server:', e.message);
+        report(`Không gửi được token lên máy chủ: ${e.message} (mã ${e.status ?? '?'})`);
       }
     });
-    PushNotifications.addListener('registrationError', (e) => console.warn('Đăng ký FCM lỗi:', JSON.stringify(e)));
+    PushNotifications.addListener('registrationError', (e) =>
+      report(`Firebase từ chối đăng ký: ${JSON.stringify(e)}`));
 
     let perm = await PushNotifications.checkPermissions();
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
       perm = await PushNotifications.requestPermissions();
     }
     if (perm.receive === 'granted') await PushNotifications.register();
+    else report(`Chưa được cấp quyền thông báo (trạng thái: ${perm.receive}). Vào Cài đặt > Ứng dụng > Két sắt > Thông báo để bật.`);
   } catch (e) {
-    console.warn('Không bật được thông báo gốc:', e);
+    report(`Không bật được thông báo: ${e?.message ?? e}`);
   }
 }
