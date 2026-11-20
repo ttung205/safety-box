@@ -31,19 +31,24 @@ if (-not $SkipBuild) {
   $env:ANDROID_HOME     = 'E:\android-dev\sdk'
   $env:GRADLE_USER_HOME = 'E:\android-dev\gradle-home'
 
+  # PowerShell 5.1 coi mọi chữ ra stderr của lệnh ngoài là lỗi; chỉ tin vào mã thoát.
+  $ErrorActionPreference = 'Continue'
+
   Write-Host '== Build web và đồng bộ vào Android ==' -ForegroundColor Cyan
   Push-Location $web
   try {
-    npm run build:app
+    npm run build:app 2>&1 | ForEach-Object { "$_" }
     if ($LASTEXITCODE -ne 0) { throw 'Build web thất bại.' }
   } finally { Pop-Location }
 
   Write-Host '== Build APK ==' -ForegroundColor Cyan
   Push-Location (Join-Path $web 'android')
   try {
-    .\gradlew.bat assembleDebug --no-daemon
+    .\gradlew.bat assembleDebug --no-daemon 2>&1 | ForEach-Object { "$_" }
     if ($LASTEXITCODE -ne 0) { throw 'Build APK thất bại.' }
   } finally { Pop-Location }
+
+  $ErrorActionPreference = 'Stop'
 
   Copy-Item (Join-Path $web 'android\app\build\outputs\apk\debug\app-debug.apk') $apk -Force
 }
