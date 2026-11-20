@@ -22,17 +22,7 @@ export async function startNativePush() {
   if (!isNativeApp || started) return;
   started = true;
   try {
-    // Kênh báo động: ưu tiên tối đa -> kêu + rung + hiện cả khi màn hình khóa.
-    await PushNotifications.createChannel({
-      id: 'alarm',
-      name: 'Báo động két sắt',
-      description: 'Báo động khi có người cạy phá hoặc mở cưỡng bức',
-      importance: 5,
-      visibility: 1,
-      vibration: true,
-      lights: true,
-      lightColor: '#FF0000',
-    });
+    // Kênh báo động 'alarm_siren' (còi hú 30 giây) được tạo ở phía Android: MainActivity.java.
     await PushNotifications.createChannel({
       id: 'events',
       name: 'Cảnh báo két sắt',

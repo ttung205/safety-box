@@ -30,11 +30,12 @@ export async function sendFcm(tokens, payload) {
       priority: 'high',
       ttl: 3600 * 1000,
       notification: {
-        channelId: critical ? 'alarm' : 'events',
+        // 'alarm_siren' là kênh còi hú 30 giây, tạo sẵn trong MainActivity.java của app.
+        channelId: critical ? 'alarm_siren' : 'events',
         tag: payload.tag,
-        sound: 'default',
-        defaultVibrateTimings: true,
-        defaultSound: true,
+        sound: critical ? 'siren' : 'default', // Android 7 trở xuống dùng file res/raw/siren
+        defaultVibrateTimings: !critical,
+        defaultSound: !critical,
         notificationPriority: critical ? 'PRIORITY_MAX' : 'PRIORITY_DEFAULT',
         visibility: 'PUBLIC',
       },
