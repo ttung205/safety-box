@@ -1,13 +1,13 @@
-import admin from 'firebase-admin';
+import { cert, getApps, initializeApp } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
 // Thông báo đẩy gốc Android (FCM) cho app Capacitor: rung + kêu kể cả khi app đóng.
-// Cần biến môi trường FIREBASE_SERVICE_ACCOUNT = nội dung file JSON của service account (một dòng).
+// Cần biến môi trường FIREBASE_SERVICE_ACCOUNT = nội dung file JSON của service account.
 let messaging = null;
 try {
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    const credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT));
-    const app = admin.apps.length ? admin.app() : admin.initializeApp({ credential });
-    messaging = app.messaging();
+    const app = getApps()[0] ?? initializeApp({ credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
+    messaging = getMessaging(app);
   }
 } catch (err) {
   console.warn(`[FCM] Cấu hình FIREBASE_SERVICE_ACCOUNT không hợp lệ: ${err.message}`);
