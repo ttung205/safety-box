@@ -8,7 +8,7 @@ export const isNativeApp = Capacitor.isNativePlatform();
 let started = false;
 
 // Hộp thoại hệ thống: thấy được ngay trên điện thoại mà không cần cắm máy tính đọc log.
-// Chỉ hiện khi có lỗi hoặc đăng ký thành công (lần đầu), tối đa một lần mỗi lần mở app.
+// Chỉ hiện khi có lỗi.
 function report(message) {
   console.warn('[PUSH]', message);
   try {
@@ -34,7 +34,7 @@ export async function startNativePush() {
     PushNotifications.addListener('registration', async ({ value }) => {
       try {
         await api('/dash-api/push/fcm-token', { method: 'POST', body: { token: value } });
-        report('Đã bật thông báo báo động trên máy này.');
+        console.info('[PUSH] Đã đăng ký thông báo báo động trên máy này.');
       } catch (e) {
         report(`Không gửi được token lên máy chủ: ${e.message} (mã ${e.status ?? '?'})`);
       }
