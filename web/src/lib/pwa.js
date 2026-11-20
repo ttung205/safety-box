@@ -9,7 +9,9 @@ window.addEventListener('offline', () => (online.value = false));
 
 // ---- Cập nhật phiên bản mới ----
 export const needRefresh = ref(false);
-const updateSW = registerSW({ onNeedRefresh: () => (needRefresh.value = true) });
+// Trong app Capacitor (native) không dùng Service Worker: file đã nằm sẵn trong APK.
+export const isNative = Boolean(window.Capacitor?.isNativePlatform?.());
+const updateSW = isNative ? () => {} : registerSW({ onNeedRefresh: () => (needRefresh.value = true) });
 export const applyUpdate = () => updateSW(true);
 
 // ---- Cài ứng dụng ----
@@ -42,7 +44,7 @@ export async function installApp() {
 // 'unsupported' | 'needs-install' (iOS chưa cài lên màn hình chính) | 'denied' | 'off' | 'on'
 export const pushState = ref('off');
 
-const pushSupported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const pushSupported = !isNative && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
 function urlBase64ToUint8Array(base64) {
   const padded = (base64 + '='.repeat((4 - (base64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');

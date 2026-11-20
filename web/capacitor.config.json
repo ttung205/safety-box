@@ -1,0 +1,6 @@
+{
+  "appId": "vn.edu.ketsat.app",
+  "appName": "Két sắt thông minh",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" }
+}

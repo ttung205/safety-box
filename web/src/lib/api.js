@@ -7,8 +7,11 @@ export class ApiError extends Error {
   }
 }
 
+// Web: để trống (cùng origin). App Capacitor: đặt VITE_API_BASE=https://<ten-app>.vercel.app
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '') || location.origin;
+
 export function buildUrl(path, query = {}) {
-  const url = new URL(path, location.origin);
+  const url = new URL(path, API_BASE);
   for (const [k, v] of Object.entries(query)) {
     if (v === undefined || v === null || v === '' || (Array.isArray(v) && !v.length)) continue;
     url.searchParams.set(k, Array.isArray(v) ? v.join(',') : v);

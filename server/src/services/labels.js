@@ -10,8 +10,16 @@ export const SEVERITY_BY_TYPE = {
   LOCKED: 'info',
   ALARM_RESET: 'info',
   VIBRATION: 'info',
+  // Firmware 1.4.0
+  LOCKOUT_END: 'info',
+  DOOR_LEFT: 'warning',
+  LATCH_FAIL: 'warning',
+  WATCHDOG: 'critical',
+  POWER_LOST: 'warning',
+  POWER_RESTORED: 'info',
+  BATT_LOW: 'warning',
 };
 
 export const EVENT_TYPES = Object.keys(SEVERITY_BY_TYPE);
 export const SEVERITIES = ['critical', 'warning', 'info'];
-export const STATES = ['LOCKED', 'WAIT_OTP', 'OPEN', 'ALARM'];
+export const STATES = ['LOCKED', 'WAIT_OTP', 'OPEN', 'ALARM', 'LOCKOUT'];

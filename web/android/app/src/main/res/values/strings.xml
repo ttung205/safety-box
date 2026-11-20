@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Két sắt thông minh</string>
+    <string name="title_activity_main">Két sắt thông minh</string>
+    <string name="package_name">vn.edu.ketsat.app</string>
+    <string name="custom_url_scheme">vn.edu.ketsat.app</string>
+</resources>
