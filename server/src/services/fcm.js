@@ -18,6 +18,16 @@ export const FCM_PREFIX = 'fcm:'; // lưu trong push_subscriptions.endpoint đ�
 
 const DEAD = new Set(['messaging/registration-token-not-registered', 'messaging/invalid-registration-token']);
 
+// Tắt còi hú trên điện thoại: tin chỉ có dữ liệu, app nhận ở AlarmMessagingService rồi hủy thông báo.
+export async function sendFcmClear(tokens) {
+  if (!messaging || !tokens.length) return;
+  await messaging.sendEachForMulticast({
+    tokens,
+    data: { action: 'clear' },
+    android: { priority: 'high', ttl: 60 * 1000 },
+  });
+}
+
 // payload: { title, body, tag, severity }. Trả về danh sách token đã chết để xóa.
 export async function sendFcm(tokens, payload) {
   if (!messaging || !tokens.length) return [];

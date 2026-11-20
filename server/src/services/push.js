@@ -1,7 +1,7 @@
 import webpush from 'web-push';
 import { config } from '../config.js';
 import { prisma } from '../prisma.js';
-import { FCM_PREFIX, fcmEnabled, sendFcm } from './fcm.js';
+import { FCM_PREFIX, fcmEnabled, sendFcm, sendFcmClear } from './fcm.js';
 
 const { publicKey, privateKey, subject, severities } = config.push;
 export const pushEnabled = Boolean(publicKey && privateKey);
@@ -26,11 +26,19 @@ export function toPushPayload(ev) {
 // Gọi sau khi đã trả lời ESP32; lỗi gửi push không ảnh hưởng việc lưu sự kiện.
 export async function notifyPush(events) {
   const list = events.filter((ev) => severities.includes(ev.severity));
-  if (!list.length || (!pushEnabled && !fcmEnabled)) return;
+  const reset = events.some((ev) => ev.type === 'ALARM_RESET');
+  if ((!list.length && !reset) || (!pushEnabled && !fcmEnabled)) return;
 
   const all = await prisma.pushSubscription.findMany();
   if (!all.length) return;
   const fcmSubs = all.filter((s) => s.endpoint.startsWith(FCM_PREFIX));
+
+  // Két hết báo động (admin quẹt thẻ): tắt còi hú đang kêu trên các điện thoại.
+  if (reset && fcmSubs.length) {
+    await sendFcmClear(fcmSubs.map((s) => s.endpoint.slice(FCM_PREFIX.length))).catch((err) =>
+      console.warn(`[FCM] Không gửi được lệnh tắt còi: ${err.message}`));
+  }
+  if (!list.length) return;
   const subs = pushEnabled ? all.filter((s) => !s.endpoint.startsWith(FCM_PREFIX)) : [];
 
   const gone = new Set();
