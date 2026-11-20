@@ -19,6 +19,7 @@ import {
   pushState,
   syncPush,
 } from '../lib/pwa.js';
+import { startNativePush } from '../lib/nativePush.js';
 import { connected, useSocketEvent } from '../lib/socket.js';
 import { loadDevices } from '../lib/store.js';
 import AlarmBanner from './AlarmBanner.vue';
@@ -84,7 +85,10 @@ const menuItems = computed(() => [
   { label: 'Đăng xuất', icon: 'pi pi-sign-out', command: doLogout },
 ]);
 
-onMounted(syncPush);
+onMounted(() => {
+  syncPush();
+  startNativePush();
+});
 loadDevices().catch((err) => fail('Không tải được danh sách két', err));
 
 // Có mạng trở lại: tải lại dữ liệu bị lỡ khi offline.

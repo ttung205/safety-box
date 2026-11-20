@@ -6,6 +6,7 @@ import { emitDashboard } from '../realtime.js';
 import { toDeviceDto } from '../services/devices.js';
 import { toEventDto } from '../services/ingest.js';
 import { EVENT_TYPES, SEVERITIES } from '../services/labels.js';
+import { FCM_PREFIX, fcmEnabled } from '../services/fcm.js';
 import { pushEnabled, pushPublicKey } from '../services/push.js';
 
 // API chỉ đọc cho dashboard (+ quản lý thẻ). Không có route nào gửi lệnh về két.
@@ -228,6 +229,19 @@ dashRouter.post('/push/subscribe', async (req, res) => {
     auth: keys.auth,
     userAgent: String(req.get('user-agent') || '').slice(0, 255) || null,
   };
+  await prisma.pushSubscription.upsert({ where: { endpoint }, create: { endpoint, ...data }, update: data });
+  res.status(201).json({ ok: true });
+});
+
+// App Android (Capacitor) đăng ký token FCM. Lưu chung bảng push_subscriptions với tiền tố "fcm:".
+const fcmSchema = z.object({ token: z.string().min(20).max(4096) });
+
+dashRouter.post('/push/fcm-token', async (req, res) => {
+  if (!fcmEnabled) return res.status(503).json({ error: 'Máy chủ chưa cấu hình Firebase (FIREBASE_SERVICE_ACCOUNT).' });
+  const r = fcmSchema.safeParse(req.body);
+  if (!r.success) return res.status(400).json({ error: 'Token không hợp lệ.' });
+  const endpoint = FCM_PREFIX + r.data.token;
+  const data = { userId: req.user.id, p256dh: 'fcm', auth: 'fcm', userAgent: 'android-app' };
   await prisma.pushSubscription.upsert({ where: { endpoint }, create: { endpoint, ...data }, update: data });
   res.status(201).json({ ok: true });
 });

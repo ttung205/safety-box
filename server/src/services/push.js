@@ -1,6 +1,7 @@
 import webpush from 'web-push';
 import { config } from '../config.js';
 import { prisma } from '../prisma.js';
+import { FCM_PREFIX, fcmEnabled, sendFcm } from './fcm.js';
 
 const { publicKey, privateKey, subject, severities } = config.push;
 export const pushEnabled = Boolean(publicKey && privateKey);
@@ -25,12 +26,26 @@ export function toPushPayload(ev) {
 // Gọi sau khi đã trả lời ESP32; lỗi gửi push không ảnh hưởng việc lưu sự kiện.
 export async function notifyPush(events) {
   const list = events.filter((ev) => severities.includes(ev.severity));
-  if (!pushEnabled || !list.length) return;
+  if (!list.length || (!pushEnabled && !fcmEnabled)) return;
 
-  const subs = await prisma.pushSubscription.findMany();
-  if (!subs.length) return;
+  const all = await prisma.pushSubscription.findMany();
+  if (!all.length) return;
+  const fcmSubs = all.filter((s) => s.endpoint.startsWith(FCM_PREFIX));
+  const subs = pushEnabled ? all.filter((s) => !s.endpoint.startsWith(FCM_PREFIX)) : [];
 
   const gone = new Set();
+
+  // App Android (FCM): rung + kêu kể cả khi app đóng.
+  if (fcmSubs.length) {
+    const tokens = fcmSubs.map((s) => s.endpoint.slice(FCM_PREFIX.length));
+    for (const ev of list) {
+      const dead = await sendFcm(tokens, toPushPayload(ev)).catch((err) => {
+        console.warn(`[FCM] Lỗi gửi: ${err.message}`);
+        return [];
+      });
+      dead.forEach((t) => gone.add(FCM_PREFIX + t));
+    }
+  }
   await Promise.allSettled(
     subs.flatMap((sub) =>
       list.map(async (ev) => {
