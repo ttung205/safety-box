@@ -20,6 +20,8 @@ export function toDeviceDto(d) {
     timeOk: d.timeOk,
     uptime: d.uptime,
     freeHeap: d.freeHeap,
+    battPct: d.battPct,
+    onBattery: d.onBattery,
     lastSeenAt: d.lastSeenAt,
     cardsVersion: d.cardsVersion,
     online: isOnline(d),

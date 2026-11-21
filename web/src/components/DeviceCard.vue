@@ -15,6 +15,15 @@ const state = computed(() => stateOf(props.device.state));
 const expanded = ref(false);
 const showAll = computed(() => expanded.value || !isMobile.value);
 const alarm = computed(() => props.device.state === 'ALARM');
+
+// Pin dự phòng: chỉ hiện khi két có gắn mạch đo và đã gửi số liệu.
+const hasBatt = computed(() => props.device.battPct != null);
+const battColor = computed(() => {
+  const p = props.device.battPct;
+  return p >= 50 ? 'bg-green-500' : p >= 20 ? 'bg-amber-500' : 'bg-red-500';
+});
+// Mất kết nối khi đang chạy pin: nhiều khả năng két đã hết pin.
+const maybeDead = computed(() => !props.device.online && props.device.onBattery === true);
 </script>
 
 <template>
@@ -38,6 +47,30 @@ const alarm = computed(() => props.device.state === 'ALARM');
         <div class="flex items-center gap-3">
           <Tag :value="state.label" :icon="state.icon" :severity="state.tag" class="text-sm px-3 py-1" />
           <span v-if="!device.online && device.state" class="text-xs text-slate-500">Trạng thái ghi nhận cuối cùng</span>
+        </div>
+
+        <div v-if="hasBatt" class="flex flex-col gap-2">
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-xs text-slate-500">Pin dự phòng</span>
+            <span class="flex items-center gap-2 tabular-nums font-medium">
+              {{ device.battPct }}%
+              <Tag
+                v-if="device.onBattery != null"
+                :value="device.onBattery ? 'Đang chạy pin' : 'Đang cắm điện'"
+                :severity="device.onBattery ? 'warn' : 'success'"
+                class="text-xs"
+              />
+            </span>
+          </div>
+          <div class="h-2 w-full rounded-full bg-slate-200 overflow-hidden" role="progressbar" :aria-valuenow="device.battPct" aria-valuemin="0" aria-valuemax="100">
+            <div class="h-full rounded-full transition-all" :class="battColor" :style="{ width: `${device.battPct}%` }" />
+          </div>
+          <span v-if="maybeDead" class="text-xs text-red-600 font-medium">
+            Két mất kết nối khi đang chạy pin, có thể pin đã hết.
+          </span>
+          <span v-else-if="device.battPct < 20" class="text-xs text-red-600 font-medium">
+            Pin yếu, hãy cắm điện cho két.
+          </span>
         </div>
 
         <Divider class="m-0" />

@@ -38,6 +38,8 @@ const heartbeatSchema = z.object({
   time_ok: z.boolean().optional(),
   fw: z.string().max(32).optional(),
   free_heap: z.number().int().nonnegative().optional(),
+  batt_pct: z.number().int().min(0).max(100).optional(),
+  on_battery: z.boolean().optional(),
 });
 
 // 422 = dữ liệu sai -> firmware bỏ lô đó, không gửi lại mãi.

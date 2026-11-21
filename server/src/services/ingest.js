@@ -72,6 +72,9 @@ export async function recordHeartbeat(device, hb) {
       uptime: hb.uptime,
       timeOk: hb.time_ok,
       freeHeap: hb.free_heap,
+      // Két không gắn mạch đo thì không gửi hai trường này; undefined giữ nguyên giá trị cũ.
+      battPct: hb.batt_pct,
+      onBattery: hb.on_battery,
     },
   });
   await emitDevice(updated);

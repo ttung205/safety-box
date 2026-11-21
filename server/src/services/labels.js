@@ -18,6 +18,8 @@ export const SEVERITY_BY_TYPE = {
   POWER_LOST: 'warning',
   POWER_RESTORED: 'info',
   BATT_LOW: 'warning',
+  // Firmware 1.5.1: pin sắp cạn, két sắp tắt. Mức critical để điện thoại kêu dù đang tắt màn hình.
+  BATT_EMPTY: 'critical',
 };
 
 export const EVENT_TYPES = Object.keys(SEVERITY_BY_TYPE);

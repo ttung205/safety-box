@@ -19,6 +19,8 @@ model Device {
   timeOk       Boolean?  @map("time_ok")
   uptime       Int?
   freeHeap     Int?      @map("free_heap")
+  battPct      Int?      @map("batt_pct")
+  onBattery    Boolean?  @map("on_battery")
   lastSeenAt   DateTime? @map("last_seen_at")
   // Tăng 1 mỗi lần thêm/xóa thẻ; ESP32 chỉ tải lại danh sách khi số này đổi.
   cardsVersion Int       @default(1) @map("cards_version")

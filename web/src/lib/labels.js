@@ -16,6 +16,14 @@ export const EVENT_TYPES = {
   LOCKED: 'Đóng két',
   ALARM_RESET: 'Tắt báo động',
   VIBRATION: 'Rung nhẹ',
+  LOCKOUT_END: 'Hết khóa tạm',
+  DOOR_LEFT: 'Cửa mở quá lâu',
+  LATCH_FAIL: 'Chốt chưa khóa',
+  WATCHDOG: 'Két tự khởi động lại',
+  POWER_LOST: 'Mất điện lưới',
+  POWER_RESTORED: 'Có điện lại',
+  BATT_LOW: 'Pin yếu',
+  BATT_EMPTY: 'Pin sắp hết',
 };
 
 export const STATES = {
@@ -23,6 +31,7 @@ export const STATES = {
   WAIT_OTP: { label: 'Chờ nhập OTP', tag: 'warn', icon: 'pi pi-key' },
   OPEN: { label: 'Đang mở', tag: 'info', icon: 'pi pi-lock-open' },
   ALARM: { label: 'Báo động', tag: 'danger', icon: 'pi pi-exclamation-triangle' },
+  LOCKOUT: { label: 'Khóa tạm', tag: 'warn', icon: 'pi pi-ban' },
 };
 
 export const typeLabel = (t) => EVENT_TYPES[t] ?? t;
@@ -44,6 +53,7 @@ export function describeMeta(meta) {
   if (meta.attempts !== undefined) parts.push(`${meta.attempts} lần sai`);
   if (meta.by) parts.push(BY[meta.by] ?? meta.by);
   if (meta.fw) parts.push(`FW ${meta.fw}`);
+  if (meta.batt_pct !== undefined && meta.batt_pct >= 0) parts.push(`pin ${meta.batt_pct}%`);
   if (meta.time_ok === false) parts.push('chưa có giờ');
   return parts.join(' · ');
 }
