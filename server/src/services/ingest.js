@@ -1,5 +1,6 @@
 import { prisma } from '../prisma.js';
 import { emitDashboard } from '../realtime.js';
+import { attachCardNames } from './cardNames.js';
 import { emitDevice } from './devices.js';
 import { SEVERITY_BY_TYPE } from './labels.js';
 
@@ -44,7 +45,7 @@ export async function ingestEvents(device, { boot_id, events }) {
     skipDuplicates: true,
     include: { device: { select: { name: true } } },
   });
-  const created = rows.map(toEventDto);
+  const created = await attachCardNames(rows.map(toEventDto));
   const duplicates = events.length - created.length;
 
   const lastState = events.findLast((e) => e.state)?.state;

@@ -6,3 +6,6 @@ secrets.h
 node_modules/
 release.env
 ket-sat.apk
+
+.vercel
+.env*

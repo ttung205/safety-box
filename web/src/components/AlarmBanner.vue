@@ -70,7 +70,7 @@ onBeforeUnmount(() => {
             <span class="text-xs">
               <template v-if="store.lastAlarm[d.id]">
                 {{ formatDateTime(store.lastAlarm[d.id].occurredAt) }}
-                <template v-if="describeMeta(store.lastAlarm[d.id].meta)"> · {{ describeMeta(store.lastAlarm[d.id].meta) }}</template>
+                <template v-if="describeMeta(store.lastAlarm[d.id].meta, store.lastAlarm[d.id].cardName)"> · {{ describeMeta(store.lastAlarm[d.id].meta, store.lastAlarm[d.id].cardName) }}</template>
                 ·
               </template>
               Quẹt thẻ Admin tại két để tắt báo động.

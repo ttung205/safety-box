@@ -198,10 +198,10 @@ const emptyText = computed(() =>
                   <span class="ml-auto text-xs text-slate-500 tabular-nums whitespace-nowrap">{{ formatDateTime(row.occurredAt) }}</span>
                 </div>
                 <span class="text-sm text-slate-700">{{ row.message }}</span>
-                <span v-if="describeMeta(row.meta) || devices.length > 1" class="text-xs text-slate-500">
+                <span v-if="describeMeta(row.meta, row.cardName) || devices.length > 1" class="text-xs text-slate-500">
                   <template v-if="devices.length > 1">{{ row.deviceName }}</template>
-                  <template v-if="devices.length > 1 && describeMeta(row.meta)"> · </template>
-                  {{ describeMeta(row.meta) }}
+                  <template v-if="devices.length > 1 && describeMeta(row.meta, row.cardName)"> · </template>
+                  {{ describeMeta(row.meta, row.cardName) }}
                 </span>
               </div>
             </div>
@@ -247,7 +247,7 @@ const emptyText = computed(() =>
           <Column field="message" header="Nội dung" />
           <Column header="Chi tiết">
             <template #body="{ data }">
-              <span class="text-xs text-slate-500">{{ describeMeta(data.meta) }}</span>
+              <span class="text-xs text-slate-500">{{ describeMeta(data.meta, data.cardName) }}</span>
             </template>
           </Column>
         </DataTable>

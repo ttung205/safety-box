@@ -1,0 +1,22 @@
+name: Kiểm tra két mất kết nối
+
+# Vercel gói miễn phí chỉ cho cron mỗi ngày một lần, nên dùng GitHub Actions gọi máy chủ mỗi 5 phút.
+# Cần hai chỗ cấu hình, cùng một giá trị bí mật:
+#   - Vercel > Settings > Environment Variables: CRON_SECRET
+#   - GitHub > Settings > Secrets and variables > Actions: CRON_SECRET
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gọi /api/cron/offline
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error --max-time 30 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            https://safety-box.vercel.app/api/cron/offline

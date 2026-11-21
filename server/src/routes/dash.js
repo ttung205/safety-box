@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { prisma } from '../prisma.js';
 import { emitDashboard } from '../realtime.js';
+import { attachCardNames, normalizeUid } from '../services/cardNames.js';
 import { toDeviceDto } from '../services/devices.js';
 import { toEventDto } from '../services/ingest.js';
 import { EVENT_TYPES, SEVERITIES } from '../services/labels.js';
@@ -59,7 +60,7 @@ dashRouter.get('/events', async (req, res) => {
       take: pageSize,
     }),
   ]);
-  res.json({ items: rows.map(toEventDto), total, page, pageSize });
+  res.json({ items: await attachCardNames(rows.map(toEventDto)), total, page, pageSize });
 });
 
 dashRouter.get('/events/export', async (req, res) => {
@@ -71,10 +72,11 @@ dashRouter.get('/events/export', async (req, res) => {
   });
   const cell = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const vnTime = (d) => new Date(d.getTime() + VN_OFFSET_MS).toISOString().replace('T', ' ').slice(0, 19);
-  const lines = [['Thời gian', 'Két', 'Mức độ', 'Loại', 'Trạng thái', 'Nội dung', 'Chi tiết'].map(cell).join(',')];
+  const names = new Map((await attachCardNames(rows.map(toEventDto))).map((e) => [e.id, e.cardName]));
+  const lines = [['Thời gian', 'Két', 'Mức độ', 'Loại', 'Trạng thái', 'Nội dung', 'Chủ thẻ', 'Chi tiết'].map(cell).join(',')];
   for (const r of rows) {
     const meta = r.meta ? JSON.stringify(r.meta) : '';
-    lines.push([vnTime(r.occurredAt), r.device.name, r.severity, r.type, r.state, r.message, meta].map(cell).join(','));
+    lines.push([vnTime(r.occurredAt), r.device.name, r.severity, r.type, r.state, r.message, names.get(r.id), meta].map(cell).join(','));
   }
   const today = vnTime(new Date()).slice(0, 10);
   res.set('Content-Type', 'text/csv; charset=utf-8');
@@ -113,12 +115,8 @@ dashRouter.get('/stats', async (req, res) => {
 });
 
 // ------------------------------------------------------------- Thẻ Admin
-// "de:ad:be:ef", "DEADBEEF", "de ad be ef" -> "DE AD BE EF" (đúng định dạng firmware in ra).
-export function normalizeUid(input) {
-  const hex = String(input ?? '').replace(/[^0-9a-f]/gi, '').toUpperCase();
-  if (hex.length < 8 || hex.length > 20 || hex.length % 2) return null;
-  return hex.match(/../g).join(' ');
-}
+// normalizeUid nằm ở services/cardNames.js (dùng chung); giữ export ở đây cho các nơi đang import từ routes/dash.js.
+export { normalizeUid };
 
 const cardSchema = z.object({
   deviceId: z.number().int().positive(),

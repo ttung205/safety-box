@@ -20,6 +20,9 @@ export const SEVERITY_BY_TYPE = {
   BATT_LOW: 'warning',
   // Firmware 1.5.1: pin sắp cạn, két sắp tắt. Mức critical để điện thoại kêu dù đang tắt màn hình.
   BATT_EMPTY: 'critical',
+  // Do máy chủ tạo khi két im lặng quá lâu / liên lạc lại (két không tự gửi được).
+  DEVICE_OFFLINE: 'warning',
+  DEVICE_ONLINE: 'info',
 };
 
 export const EVENT_TYPES = Object.keys(SEVERITY_BY_TYPE);

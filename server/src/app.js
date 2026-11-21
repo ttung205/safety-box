@@ -1,5 +1,7 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import helmet from 'helmet';
+import { checkOffline } from './services/presence.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { fcmEnabled } from './services/fcm.js';
 import { pushEnabled } from './services/push.js';
@@ -30,6 +32,18 @@ export function createApp() {
 
   // Chẩn đoán cấu hình (chỉ trả về true/false, không lộ giá trị nào).
   app.get('/api/health', (req, res) => res.json({ ok: true, fcm: fcmEnabled, webPush: pushEnabled }));
+
+  // Cron (GitHub Actions) gọi mỗi 5 phút để phát hiện két mất kết nối. Bảo vệ bằng CRON_SECRET.
+  app.get('/api/cron/offline', async (req, res) => {
+    const secret = process.env.CRON_SECRET;
+    if (!secret) return res.status(503).json({ error: 'Chưa cấu hình CRON_SECRET.' });
+    const given = Buffer.from(String(req.get('authorization') ?? ''));
+    const expected = Buffer.from(`Bearer ${secret}`);
+    if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
+      return res.status(401).json({ error: 'Sai CRON_SECRET.' });
+    }
+    res.json({ ok: true, ...(await checkOffline()) });
+  });
 
   app.use('/api/device', deviceRouter);
   app.use('/dash-api', requireAuth, dashRouter);

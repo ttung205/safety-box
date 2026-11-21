@@ -24,6 +24,8 @@ export const EVENT_TYPES = {
   POWER_RESTORED: 'Có điện lại',
   BATT_LOW: 'Pin yếu',
   BATT_EMPTY: 'Pin sắp hết',
+  DEVICE_OFFLINE: 'Két mất kết nối',
+  DEVICE_ONLINE: 'Két kết nối lại',
 };
 
 export const STATES = {
@@ -42,10 +44,13 @@ const ALARM_REASONS = { TAMPER: 'Cạy phá', OTP_FAILS: 'Sai OTP quá số lầ
 const BY = { card: 'Bằng thẻ', otp: 'Bằng mã OTP', keypad: 'Bằng bàn phím', auto: 'Tự động', test_key: 'Phím test' };
 
 // Diễn giải trường meta của sự kiện thành một dòng ngắn.
-export function describeMeta(meta) {
+// cardName là tên chủ thẻ do máy chủ gắn vào sự kiện (nếu UID đã đăng ký).
+export function describeMeta(meta, cardName) {
   if (!meta || typeof meta !== 'object') return '';
   const parts = [];
-  if (meta.uid) parts.push(`UID ${meta.uid}`);
+  if (meta.uid) parts.push(cardName ? `${cardName} (${meta.uid})` : `UID ${meta.uid}`);
+  if (meta.minutes !== undefined) parts.push(`im lặng ${meta.minutes} phút`);
+  if (meta.offline_sec !== undefined) parts.push(`đã mất kết nối ${Math.max(1, Math.round(meta.offline_sec / 60))} phút`);
   if (meta.reason) parts.push(ALARM_REASONS[meta.reason] ?? meta.reason);
   if (meta.hits !== undefined) parts.push(`${meta.hits} va đập`);
   if (meta.vibration_ms !== undefined) parts.push(`rung ${meta.vibration_ms} ms`);

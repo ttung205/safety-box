@@ -12,7 +12,8 @@ export const pushPublicKey = publicKey;
 const TITLES = { critical: 'Báo động', warning: 'Cảnh báo', info: 'Thông báo' };
 
 export function toPushPayload(ev) {
-  const detail = [ev.message, ev.meta?.uid && `UID thẻ: ${ev.meta.uid}`].filter(Boolean).join(' · ');
+  const card = ev.meta?.uid && (ev.cardName ? `Thẻ: ${ev.cardName} (${ev.meta.uid})` : `UID thẻ: ${ev.meta.uid}`);
+  const detail = [ev.message, card].filter(Boolean).join(' · ');
   return {
     title: `${TITLES[ev.severity] ?? 'Thông báo'} · ${ev.deviceName}`,
     body: detail,
